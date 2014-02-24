@@ -1,7 +1,8 @@
 import os
+import dropbox
 
 dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
-DROPBOX_DIR = "~/parrot_fs_dropbox_private/"
+DROPBOX_DIR = os.environ['HOME'] + "/parrot_fs_dropbox_dir"
 
 # Get your app key and secret from the Dropbox developer website
 APP_KEY = 'vu3xexqedjpw523'
@@ -10,16 +11,15 @@ APP_SECRET = '8fyq6q9qmb0wn6l'
 # ACCESS_TYPE should be 'dropbox' or 'app_folder' as configured for your app
 ACCESS_TYPE = 'app_folder'
 
-RD_ONLY = 0
-WR_ONLY = 1
-RD_WR = 2
-
-fd_table = [0 for x in range(10)]
+# Name of current working directory
+current_dir = '/'
+fd_table = {}
 
 class pfs_file_dropbox:
-	def __init__(self, name, f):
-		self.name = name
-		self.f = f
+	def __init__(self, name, fp, path):
+		self.name = name    # file name
+		self.fp = fp        # file pointer
+		self.path = path    # directory that file was downloaded from
 
 class pfs_service_dropbox:
 	def __init__(self):
@@ -41,24 +41,47 @@ class pfs_service_dropbox:
 		print access_token
 
 		self.client = dropbox.client.DropboxClient(access_token)
-		print 'linked account: ' + client.account_info()
+		print 'linked account: ' + str(self.client.account_info())
 
 	def open(self, name, flags):
 		filename = name.split('/')[-1]
+		path = name.split('/')[:-1]
+		pathstring = ''
+		for i in path:
+			pathstring += i + '/'
+		print pathstring
 
 		current = os.getcwd()
 		os.chdir(DROPBOX_DIR)
-		self.client.getfile(name)
+		self.client.get_file(name)
 
-		if flags & RD_ONLY:
-			fo = open(name, "r")
-		elif flags & WR_ONLY:
-			fo = open(name, "w")
-		elif flags & RD_WR:
-			fo = open(name, "w+")
+		print os.getcwd()
+		print name
+		print os.listdir(os.getcwd())
+		
+		fo = open(name, flags)
 
+		for i in fo.readlines():
+			print i
+
+		print "---------------------------------------------------"
+		print
+		print
+
+		fd_table[name] = pfs_file_dropbox(name, fo, pathstring)
 		os.chdir(current)
 
+		return fo
 
 	def close(self, name):
-		
+		fc = fd_table[name]
+		fc.fp.close()
+
+	# def mkdir(self):
+
+	# def chdir(self, name):
+	# 	current_dir = name
+
+	# def getcwd(self):
+	# 	return current_dir
+
