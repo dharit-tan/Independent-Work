@@ -79,11 +79,11 @@ class pfs_service_dropbox:
 		f = self.fd_table[path]
 		f.fp.seek(0)
 		if f.flags == "r": # don't re-upload if file was not supposed to be written to
-			print "file is read only; did not upload"
+			# print "file is read only; did not upload"
 			pass
 		else:
 			response = self.client.put_file(f.path, f.fp, overwrite=True)
-			print "file uploaded successfully"
+			# print "file uploaded successfully"
 		os.chdir(old_current)
 
 	def __check_path(self, filename):
@@ -110,10 +110,10 @@ class pfs_service_dropbox:
 	def open(self, filepath, flags="r"):
 		path = self.__check_path(filepath)
 		filename = filepath.split('/')[-1]
-		print "filename: " + filename
+		# print "filename: " + filename
 
-		print "current_dir: " + self.current_dir
-		print "trying to download: " + path
+		# print "current_dir: " + self.current_dir
+		# print "trying to download: " + path
 
 		# chdir to private temp dropbox directory
 		old_current = os.getcwd()
