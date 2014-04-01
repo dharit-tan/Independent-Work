@@ -94,7 +94,7 @@ class pfs_service_dropbox:
 
 	# --------------------------------------------------------------------------#
 		
-	def __init__(self, mode):
+	def __init__(self, mode=MODE_CLOSE):
 		self.__authorize()
 
 		# current dir on dropbox
@@ -159,6 +159,7 @@ class pfs_service_dropbox:
 		os.chdir(old_current)
 		return local_copy
 
+	# no upload on close()
 	def close0(self, filename):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
@@ -173,23 +174,20 @@ class pfs_service_dropbox:
 
 		del self.fd_table[path]
 
+	# no upload on close()
 	def close1(self, filename):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
 			raise IOError("Not an open file: " + path)
 
-		# upload file first
-		self.__upload(path)
-
-		self.fd_table[path].fp.close()
-
-		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
-		os.remove(self.fd_table[path].local_name)
-		os.chdir(old_current)
+		# add file to list of files to upload later
+		pfile = self.fd_table[path]
+		pfile.fp.close()
+		self.to_upload[pfile.local_name] = pfile.path
 
 		del self.fd_table[path]
 
+	# upload on close()
 	def close2(self, filename):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
@@ -256,20 +254,24 @@ class pfs_service_dropbox:
 			return self.fd_table[path].fp.read(size)
 
 	def write(self, filename, string):
-		path = self.__check_path(filename)
-		if path not in self.fd_table:
-			raise IOError("Not an open file: " + path)
-
 		if self.mode == MODE_WRITE:
 			self.write0(filename, string)
 		if self.mode == MODE_CLOSE or self.mode == MODE_EXIT:
 			self.write12(filename, string)
 
 	def write0(self, filename, string):
+		path = self.__check_path(filename)
+		if path not in self.fd_table:
+			raise IOError("Not an open file: " + path)
+
 		self.fd_table[path].fp.write(string)
 		self.__upload(path)
 
 	def write12(self, filename, string):
+		path = self.__check_path(filename)
+		if path not in self.fd_table:
+			raise IOError("Not an open file: " + path)
+
 		self.fd_table[path].fp.write(string)
 
 	def seek(self, filename, offset, from_what=0):
@@ -302,8 +304,23 @@ class pfs_service_dropbox:
 	def getcwd(self):
 		return self.current_dir
 
-	def exit(self):
+	def exit02(self):
 		keys = self.fd_table.keys()
 		for path in keys:
 			self.close(path)
 		self.client.disable_access_token()
+
+	def exit1(self):
+		keys = self.to_upload.keys()
+		old_current = os.getcwd()
+		os.chdir(DROPBOX_DIR)
+		for local_name in keys:
+			f = open(local_name, "r")
+			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)
+		os.chdir(old_current)
+
+	def exit(self):
+		if self.mode == MODE_WRITE or self.mode == MODE_CLOSE:
+			self.exit02()
+		if self.mode == MODE_EXIT:
+			self.exit1()

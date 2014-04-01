@@ -95,6 +95,7 @@ def test6(service):
 
 
 service = pfs_service_dropbox()
+
 test1(service)
 test2(service)
 test3(service)
@@ -102,4 +103,4 @@ test4(service)
 test5(service)
 test6(service)
 
-service.logout()
+service.exit()
