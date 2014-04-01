@@ -7,7 +7,7 @@ from pfs_service_dropbox import *
 # from pfs_service_dropbox import pfs_service_dropbox, pfs_file_dropbox
 
 def test1(service, filename):
-	service.open(filename,"w+")
+	service.open(filename,"r+")
 	then = time.clock()
 	service.write(filename,"HELLO THERE SIR")
 	service.close(filename)
@@ -16,7 +16,7 @@ def test1(service, filename):
 	return now - then
 
 def test2(service, filename):
-	service.open(filename,"w+")
+	service.open(filename,"r+")
 	then = time.clock()
 	service.write(filename,"HELLO THERE SIR")
 	service.write(filename,"I LOVE DOING COS INDEPENDENT WORK")
@@ -26,9 +26,21 @@ def test2(service, filename):
 	now = time.clock()
 	return now - then
 
+def test3(service, filename):
+	service.open(filename,"w+")
+	then = time.clock()
+	content = service.read(filename)
+	for i len(content):
+		service.write(filename, "b")
+	service.close(filename)
+	service.exit()
+	now = time.clock()
+	return now - then
+
 tests = [ \
-	(test1,    "Simple test"), \
-	(test2,    "Multiple writes in single session") \
+	(test1,    "Simple test"),                           \
+	(test2,    "Multiple writes in single session"),     \
+	(test3,    "Lots of really small writes")           \
 	]
 sizes = ["1kb", "10kb", "100kb", "1mb"]
 
