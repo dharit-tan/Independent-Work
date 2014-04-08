@@ -9,7 +9,7 @@ import numpy as np
 # GLOBAL VARS --------------------------------------- #
 ITERATIONS = 4
 NUM_MODES = 3
-NUM_SIZES = 4
+NUM_SIZES = 3
 
 # CLASSES --------------------------------------- #
 class test:
@@ -135,7 +135,7 @@ if __name__ == "__main__":
 		size("1kb",    0),    \
 		size("10kb",   1),    \
 		size("100kb",  2),    \
-		size("1mb",    3),    \
+		# size("1mb",    3),    \
 		]
 
 
