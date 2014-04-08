@@ -27,6 +27,8 @@ MODE_WRITE = 0
 MODE_EXIT = 1
 MODE_CLOSE = 2
 
+ANALYSIS = True
+
 class pfs_file_dropbox:
 	def __init__(self, filename, local_name, flags, fp, path):
 		self.filename = filename         # file name
@@ -56,12 +58,12 @@ class pfs_service_dropbox:
 		authorize_url = flow.start()
 		b = Browser('chrome')
 		b.visit(authorize_url)
-		# time.sleep(1)
+
 		if not b.find_by_name('allow_access'):
 			b.find_by_name('login_email')[1].fill('dtantivi@princeton.edu')
 			b.find_by_name('login_password')[1].fill('dharit1250')
 			b.find_by_css('.login-button')[0].click()
-		time.sleep(1)
+		time.sleep(2)
 		b.find_by_name('allow_access').first.click()
 		code = b.find_by_id('auth-code').first.text
 		access_token, user_id = flow.finish(code)
@@ -104,7 +106,7 @@ class pfs_service_dropbox:
 		self.fd_table = {}
 
 		self.mode = mode
-		if self.mode == 1:
+		if self.mode == MODE_EXIT:
 			self.to_upload = {}
 
 	def open(self, filepath, flags="r"):
@@ -308,7 +310,6 @@ class pfs_service_dropbox:
 		keys = self.fd_table.keys()
 		for path in keys:
 			self.close(path)
-		self.client.disable_access_token()
 
 	def exit1(self):
 		keys = self.to_upload.keys()
@@ -324,3 +325,6 @@ class pfs_service_dropbox:
 			self.exit02()
 		if self.mode == MODE_EXIT:
 			self.exit1()
+			
+		if not ANALYSIS:
+			self.client.disable_access_token()
