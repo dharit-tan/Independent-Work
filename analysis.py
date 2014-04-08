@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # GLOBAL VARS --------------------------------------- #
-ITERATIONS = 3
+ITERATIONS = 2
 NUM_MODES = 3
 NUM_SIZES = 3
 
@@ -87,12 +87,15 @@ def testall(pfslist, tests, sizes):
 			print size.size
 			for pfs in pfslist:
 				for i in range(ITERATIONS):
-					runtime = test.testfunc(pfs, filename=size.size)
+					try:
+						runtime = test.testfunc(pfs, filename=size.size)
+					except dropbox.rest.ErrorResponse:
+						pass
 					test.add_runtime(pfs.mode, size, runtime)
 					print "MODE " + str(pfs.mode) + ": " + str(runtime)
 
 def plotall(pfslist, tests, sizes):
-	width = 0.2
+	width = 0.4 / float(NUM_MODES)
 	ind = np.arange(NUM_SIZES)
 
 	for test in tests:
@@ -100,13 +103,18 @@ def plotall(pfslist, tests, sizes):
 		ax.set_title('Elapsed Time for Test ' + str(test.num) + ' for Various Modes')
 		ax.set_ylabel('Time')
 		ax.set_xlabel('File Sizes')
-		ax.set_xticks(ind+width)
+		ax.set_xticks(ind+0.2)
 		ax.set_xticklabels([size.size for size in sizes])
 
+		# hopefully we don't run out of colors...
+		colors = ['r','y','g','b','m','k','c']
+		rects = []
 		for i in range(NUM_MODES):
+			print "mode: " + str(i)
 			print test.get_size_avgs(i)
-			print ind+(test.num*width)
-			ax.bar(ind+(test.num*width), test.get_size_avgs(i), width, color='y')
+			r = ax.bar(ind+(i*width), test.get_size_avgs(i), width, color=colors[i])
+			rects.append(r)
+		ax.legend(rects, ['mode ' + str(pfs.mode) for pfs in pfslist])
 		plt.show()
 
 # MAIN() --------------------------------------- #
