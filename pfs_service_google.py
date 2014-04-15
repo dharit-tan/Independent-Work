@@ -1,22 +1,32 @@
 import os
 import subprocess
-import dropbox
 from splinter import Browser
 import time
 import string
 import random
 
+# required by google drive
+import httplib2
+import pprint
+
+from apiclient.discovery import build
+from apiclient.http import MediaFileUpload
+from oauth2client.client import OAuth2WebServerFlow
+
 # dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
-DROPBOX_DIR = os.environ['HOME'] + "/parrot_fs_dropbox_dir"
+GOOGLEDRIVE_DIR = os.environ['HOME'] + "/parrot_fs_googledrive_dir"
 
-# Get your app key and secret from the Dropbox developer website
-APP_KEY = 'vu3xexqedjpw523'
-APP_SECRET = '8fyq6q9qmb0wn6l'
+# Copy your credentials from the console
+CLIENT_ID = '944870957971-iieour9tqie3pg55ki7s0vg8sjqdou1f.apps.googleusercontent.com'
+CLIENT_SECRET = 'QlFi0KPe8bs4kwrOJIWy_oWm'
 
-# ACCESS_TYPE should be 'dropbox' or 'app_folder' as configured for your app
-ACCESS_TYPE = 'app_folder'
+# Check https://developers.google.com/drive/scopes for all available scopes
+OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive'
 
-"""
+# Redirect URI for installed apps
+REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'
+
+""
 Modes:
 - 0: Upload after every write()
 - 1: Upload only during exit()
@@ -29,7 +39,7 @@ MODE_CLOSE = 2
 
 ANALYSIS = True
 
-class pfs_file_dropbox:
+class pfs_file_googledrive:
 	def __init__(self, filename, local_name, flags, fp, path):
 		self.filename = filename         # file name
 		self.local_name = local_name     # file name on local system
@@ -37,7 +47,7 @@ class pfs_file_dropbox:
 		self.fp = fp                     # file pointer
 		self.path = path                 # path to file on dropbox
 
-class pfs_service_dropbox:
+class pfs_service_googledrive:
 
 	# PRIVATE METHODS ----------------------------------------------------------#
 
@@ -53,9 +63,16 @@ class pfs_service_dropbox:
 		self.__update_current_dir()
 
 	def __authorize(self):
-		flow = dropbox.client.DropboxOAuth2FlowNoRedirect(APP_KEY, APP_SECRET)
+		# Path to the file to upload
+		FILENAME = 'asdf'
 
-		authorize_url = flow.start()
+		# Run through the OAuth flow and retrieve credentials
+		flow = OAuth2WebServerFlow(CLIENT_ID, CLIENT_SECRET, OAUTH_SCOPE, REDIRECT_URI)
+		authorize_url = flow.step1_get_authorize_url()
+		print 'Go to the following link in your browser: ' + authorize_url
+		code = raw_input('Enter verification code: ').strip()
+		credentials = flow.step2_exchange(code)
+
 		b = Browser('chrome')
 		b.visit(authorize_url)
 
@@ -68,16 +85,27 @@ class pfs_service_dropbox:
 		code = b.find_by_id('auth-code').first.text
 		access_token, user_id = flow.finish(code)
 
-		# Print the token for future reference
-		# print access_token
 
-		self.client = dropbox.client.DropboxClient(access_token)
-		b.quit()
-		# print 'linked account: ' + str(self.client.account_info())
+		# Create an httplib2.Http object and authorize it with our credentials
+		http = httplib2.Http()
+		http = credentials.authorize(http)
+
+		drive_service = build('drive', 'v2', http=http)
+
+		# Insert a file
+		media_body = MediaFileUpload(FILENAME, mimetype='text/plain', resumable=True)
+		body = {
+		  'title': 'My document',
+		  'description': 'A test document',
+		  'mimeType': 'text/plain'
+		}
+
+		file = drive_service.files().insert(body=body, media_body=media_body).execute()
+		pprint.pprint(file)
 
 	def __upload(self, path):
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(GOOGLEDRIVE_DIR)
 		f = self.fd_table[path]
 		f.fp.seek(0)
 		if f.flags == "r": # don't re-upload if file was not supposed to be written to
@@ -119,7 +147,7 @@ class pfs_service_dropbox:
 
 		# chdir to private temp dropbox directory
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(GOOGLEDRIVE_DIR)
 		
 		local_name = ''.join(random.choice(string.ascii_letters) for i in range(10))
 
@@ -170,7 +198,7 @@ class pfs_service_dropbox:
 		self.fd_table[path].fp.close()
 
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(GOOGLEDRIVE_DIR)
 		os.remove(self.fd_table[path].local_name)
 		os.chdir(old_current)
 
@@ -201,7 +229,7 @@ class pfs_service_dropbox:
 		self.fd_table[path].fp.close()
 
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(GOOGLEDRIVE_DIR)
 		os.remove(self.fd_table[path].local_name)
 		os.chdir(old_current)
 
@@ -314,7 +342,7 @@ class pfs_service_dropbox:
 	def exit1(self):
 		keys = self.to_upload.keys()
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(GOOGLEDRIVE_DIR)
 		for local_name in keys:
 			f = open(local_name, "r")
 			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)
