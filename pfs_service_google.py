@@ -26,7 +26,7 @@ OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive'
 # Redirect URI for installed apps
 REDIRECT_URI = 'urn:ietf:wg:oauth:2.0:oob'
 
-""
+"""
 Modes:
 - 0: Upload after every write()
 - 1: Upload only during exit()
