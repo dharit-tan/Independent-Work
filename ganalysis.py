@@ -2,14 +2,14 @@
 
 # import requests
 import time
-from pfs_service_dropbox import *
+from pfs_service_googledrive import *
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 
 # GLOBAL VARS --------------------------------------- #
 ITERATIONS = 1
-NUM_MODES = 3
+NUM_MODES = 1
 NUM_SIZES = 1
 
 # CLASSES --------------------------------------- #
@@ -39,9 +39,9 @@ class size:
 		self.size = size
 		self.num = num
 
-class pfs_wrapper(pfs_service_dropbox):
+class pfs_wrapper(pfs_service_googledrive):
 	def __init__(self, mode, desc):
-		pfs_service_dropbox.__init__(self, mode)
+		pfs_service_googledrive.__init__(self, mode)
 		self.desc = desc
 
 # TESTS --------------------------------------- #
@@ -243,10 +243,10 @@ def testall(pfslist, tests, sizes):
 			print size.sizestr
 			for pfs in pfslist:
 				for i in range(ITERATIONS):
-					try:
-						runtime = test.testfunc(pfs, filename=size.sizestr)
-					except dropbox.rest.ErrorResponse:
-						pass
+					# try:
+					runtime = test.testfunc(pfs, filename=size.sizestr)
+					# except dropbox.rest.ErrorResponse:
+					# 	pass
 					test.add_runtime(pfs.mode, size, runtime)
 					print "MODE " + str(pfs.mode) + ": " + str(runtime)
 
@@ -293,14 +293,14 @@ if __name__ == "__main__":
 		]
 	pfslist = [ \
 		pfs_wrapper(MODE_WRITE,   "0: Upload after every write"),     \
-		pfs_wrapper(MODE_CLOSE,   "1: Upload on close()"),            \
-		pfs_wrapper(MODE_EXIT,    "2: Upload only during exit"),      \
+		# pfs_wrapper(MODE_CLOSE,   "1: Upload on close()"),            \
+		# pfs_wrapper(MODE_EXIT,    "2: Upload only during exit"),      \
 		]
 	sizes = [ \
 		size("1kb",    1024,       0),    \
-		size("10kb",   10240,      1),    \
-		size("100kb",  102400,     2),    \
-		size("1mb",    1048576,    3),    \
+		# size("10kb",   10240,      1),    \
+		# size("100kb",  102400,     2),    \
+		# size("1mb",    1048576,    3),    \
 		]
 
 

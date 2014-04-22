@@ -94,9 +94,9 @@ class pfs_service_googledrive:
 		f = self.fd_table[path]
 
 		# Insert a file
-		media_body = MediaFileUpload(FILENAME, mimetype='text/plain', resumable=True)
+		media_body = MediaFileUpload(f.filename, mimetype='text/plain', resumable=True)
 		body = {
-		  'title': path,
+		  'title': f.filename,
 		  'description': 'A test document',
 		  'mimeType': 'text/plain'
 		}
@@ -136,7 +136,7 @@ class pfs_service_googledrive:
 		if path in self.fd_table:
 			self.close(path)
 		local_copy = open(filename, flags) # re-open with desired flags
-		self.fd_table[path] = pfs_file_dropbox(filename, filename, flags, local_copy, path)
+		self.fd_table[path] = pfs_file_googledrive(filename, filename, flags, local_copy, path)
 
 		os.chdir(old_current)
 		return local_copy
