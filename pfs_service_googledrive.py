@@ -17,8 +17,8 @@ from oauth2client.client import OAuth2WebServerFlow
 GOOGLEDRIVE_DIR = os.environ['HOME'] + "/parrot_fs_googledrive_dir"
 
 # Copy your credentials from the console
-CLIENT_ID = '944870957971-iieour9tqie3pg55ki7s0vg8sjqdou1f.apps.googleusercontent.com'
-CLIENT_SECRET = 'QlFi0KPe8bs4kwrOJIWy_oWm'
+CLIENT_ID = '944870957971-qlhr323prli2tjis2nbup5ncl7i1ck23.apps.googleusercontent.com'
+CLIENT_SECRET = 'rn97GZkWVwTZC935EUIQ_qWv'
 
 # Check https://developers.google.com/drive/scopes for all available scopes
 OAUTH_SCOPE = 'https://www.googleapis.com/auth/drive'
@@ -69,39 +69,39 @@ class pfs_service_googledrive:
 		# Run through the OAuth flow and retrieve credentials
 		flow = OAuth2WebServerFlow(CLIENT_ID, CLIENT_SECRET, OAUTH_SCOPE, REDIRECT_URI)
 		authorize_url = flow.step1_get_authorize_url()
-		print 'Go to the following link in your browser: ' + authorize_url
-		code = raw_input('Enter verification code: ').strip()
-		credentials = flow.step2_exchange(code)
 
 		b = Browser('chrome')
 		b.visit(authorize_url)
 
 		if not b.find_by_name('allow_access'):
-			b.find_by_name('login_email')[1].fill('dtantivi@princeton.edu')
-			b.find_by_name('login_password')[1].fill('dharit1250')
-			b.find_by_css('.login-button')[0].click()
+			b.find_by_id('Email').first.fill('tortorareed@gmail.com')
+			b.find_by_id('Passwd').first.fill('dharit1250')
+			b.find_by_id('signIn').first.click()
 		time.sleep(2)
-		b.find_by_name('allow_access').first.click()
-		code = b.find_by_id('auth-code').first.text
-		access_token, user_id = flow.finish(code)
-
+		b.find_by_id('submit_approve_access').first.click()
+		print b.find_by_id('code').first.value
+		code = b.find_by_id('code').first.value
+		credentials = flow.step2_exchange(code)
 
 		# Create an httplib2.Http object and authorize it with our credentials
 		http = httplib2.Http()
 		http = credentials.authorize(http)
 
-		drive_service = build('drive', 'v2', http=http)
+		self.drive_service = build('drive', 'v2', http=http)
 
+		f = self.drive_service.files().insert(body={}, media_body=MediaFileUpload('asdf', mimetype='text/plain', resumable=True)).execute()
+		pprint.pprint(f)
 		# Insert a file
 		media_body = MediaFileUpload(FILENAME, mimetype='text/plain', resumable=True)
 		body = {
 		  'title': 'My document',
 		  'description': 'A test document',
 		  'mimeType': 'text/plain'
+		  'parents' : 
 		}
 
-		file = drive_service.files().insert(body=body, media_body=media_body).execute()
-		pprint.pprint(file)
+		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
+		# pprint.pprint(file)
 
 	def __upload(self, path):
 		old_current = os.getcwd()

@@ -10,8 +10,8 @@ import random
 DROPBOX_DIR = os.environ['HOME'] + "/parrot_fs_dropbox_dir"
 
 # Get your app key and secret from the Dropbox developer website
-APP_KEY = 'vu3xexqedjpw523'
-APP_SECRET = '8fyq6q9qmb0wn6l'
+APP_KEY = '44hex53qvj1q6t9'
+APP_SECRET = 'on3s6o9f5ifg90w'
 
 # ACCESS_TYPE should be 'dropbox' or 'app_folder' as configured for your app
 ACCESS_TYPE = 'app_folder'
@@ -19,13 +19,13 @@ ACCESS_TYPE = 'app_folder'
 """
 Modes:
 - 0: Upload after every write()
-- 1: Upload only during exit()
-- 2: Upload only during close()
+- 1: Upload only during close()
+- 2: Upload only during exit()
 """
 
 MODE_WRITE = 0
-MODE_EXIT = 1
-MODE_CLOSE = 2
+MODE_CLOSE = 1
+MODE_EXIT = 2
 
 ANALYSIS = True
 
@@ -68,9 +68,6 @@ class pfs_service_dropbox:
 		code = b.find_by_id('auth-code').first.text
 		access_token, user_id = flow.finish(code)
 
-		# Print the token for future reference
-		# print access_token
-
 		self.client = dropbox.client.DropboxClient(access_token)
 		b.quit()
 		# print 'linked account: ' + str(self.client.account_info())
@@ -81,11 +78,9 @@ class pfs_service_dropbox:
 		f = self.fd_table[path]
 		f.fp.seek(0)
 		if f.flags == "r": # don't re-upload if file was not supposed to be written to
-			# print "file is read only; did not upload"
 			pass
 		else:
 			response = self.client.put_file(f.path, f.fp, overwrite=True)
-			# print "file uploaded successfully"
 		os.chdir(old_current)
 
 	def __check_path(self, filename):
@@ -112,10 +107,6 @@ class pfs_service_dropbox:
 	def open(self, filepath, flags="r"):
 		path = self.__check_path(filepath)
 		filename = filepath.split('/')[-1]
-		# print "filename: " + filename
-
-		# print "current_dir: " + self.current_dir
-		# print "trying to download: " + path
 
 		# chdir to private temp dropbox directory
 		old_current = os.getcwd()
@@ -177,7 +168,7 @@ class pfs_service_dropbox:
 		del self.fd_table[path]
 
 	# no upload on close()
-	def close1(self, filename):
+	def close2(self, filename):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
 			raise IOError("Not an open file: " + path)
@@ -190,7 +181,7 @@ class pfs_service_dropbox:
 		del self.fd_table[path]
 
 	# upload on close()
-	def close2(self, filename):
+	def close1(self, filename):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
 			raise IOError("Not an open file: " + path)
@@ -210,9 +201,9 @@ class pfs_service_dropbox:
 	def close(self, filename):
 		if self.mode == MODE_WRITE:
 			self.close0(filename)
-		elif self.mode == MODE_EXIT:
-			self.close1(filename)
 		elif self.mode == MODE_CLOSE:
+			self.close1(filename)
+		elif self.mode == MODE_EXIT:
 			self.close2(filename)
 
 	def chdir(self, dirname=None):
@@ -306,12 +297,12 @@ class pfs_service_dropbox:
 	def getcwd(self):
 		return self.current_dir
 
-	def exit02(self):
+	def exit01(self):
 		keys = self.fd_table.keys()
 		for path in keys:
 			self.close(path)
 
-	def exit1(self):
+	def exit2(self):
 		keys = self.to_upload.keys()
 		old_current = os.getcwd()
 		os.chdir(DROPBOX_DIR)
@@ -323,9 +314,9 @@ class pfs_service_dropbox:
 
 	def exit(self):
 		if self.mode == MODE_WRITE or self.mode == MODE_CLOSE:
-			self.exit02()
+			self.exit01()
 		if self.mode == MODE_EXIT:
-			self.exit1()
+			self.exit2()
 			
 		if not ANALYSIS:
 			self.client.disable_access_token()
