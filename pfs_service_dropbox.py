@@ -76,11 +76,13 @@ class pfs_service_dropbox:
 		old_current = os.getcwd()
 		os.chdir(DROPBOX_DIR)
 		f = self.fd_table[path]
+		oldpos = f.fp.tell()
 		f.fp.seek(0)
 		if f.flags == "r": # don't re-upload if file was not supposed to be written to
 			pass
 		else:
 			response = self.client.put_file(f.path, f.fp, overwrite=True)
+		f.fp.seek(oldpos)
 		os.chdir(old_current)
 
 	def __check_path(self, filename):
@@ -142,13 +144,14 @@ class pfs_service_dropbox:
 				local_copy.write(i)
 			local_copy.close()
 
-			local_copy = open(filename, flags) # re-open with desired flags and seek to end
-			local_copy.seek(0,2)
+			local_copy = open(local_name, flags) # re-open with desired flags
+			# local_copy.seek(0,2) # seek to end?
 
 		if path in self.fd_table:
 			self.close(path)
 		self.fd_table[path] = pfs_file_dropbox(filename, local_name, flags, local_copy, path)
 
+		# os.remove(filename)
 		os.chdir(old_current)
 		return local_copy
 
@@ -157,6 +160,24 @@ class pfs_service_dropbox:
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
 			raise IOError("Not an open file: " + path)
+
+		self.fd_table[path].fp.close()
+
+		old_current = os.getcwd()
+		os.chdir(DROPBOX_DIR)
+		os.remove(self.fd_table[path].local_name)
+		os.chdir(old_current)
+
+		del self.fd_table[path]
+
+	# upload on close()
+	def close1(self, filename):
+		path = self.__check_path(filename)
+		if path not in self.fd_table:
+			raise IOError("Not an open file: " + path)
+
+		# upload file first
+		self.__upload(path)
 
 		self.fd_table[path].fp.close()
 
@@ -177,24 +198,6 @@ class pfs_service_dropbox:
 		pfile = self.fd_table[path]
 		pfile.fp.close()
 		self.to_upload[pfile.local_name] = pfile.path
-
-		del self.fd_table[path]
-
-	# upload on close()
-	def close1(self, filename):
-		path = self.__check_path(filename)
-		if path not in self.fd_table:
-			raise IOError("Not an open file: " + path)
-
-		# upload file first
-		self.__upload(path)
-
-		self.fd_table[path].fp.close()
-
-		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
-		os.remove(self.fd_table[path].local_name)
-		os.chdir(old_current)
 
 		del self.fd_table[path]
 
@@ -309,6 +312,7 @@ class pfs_service_dropbox:
 		for local_name in keys:
 			f = open(local_name, "r")
 			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)
+			os.remove(local_name)
 		os.chdir(old_current)
 		self.to_upload = {}
 

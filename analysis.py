@@ -57,6 +57,8 @@ def test0(service, filename):
 	now = time.clock()
 	return now - then
 
+# had to put in seeks before every write because of really weird bug where first write would work and be
+# at beginning of file, but subsequent writes would all be appended to end of file. wtf.
 def test1(service, filename):
 	service.open(filename,"r+")
 	then = time.clock()
@@ -67,19 +69,16 @@ def test1(service, filename):
 	service.write(filename,"123456778890")
 	service.write(filename,"123456778890")
 	service.write(filename,"123456778890")
-	service.write(filename,"123456778890")
-	service.write(filename,"123456778890")
-	service.write(filename,"123456778890")
-	service.write(filename,"123456778890")
 	service.close(filename)
 	service.exit()
 	now = time.clock()
 	return now - then
 
 def test2(service, filename):
-	service.open(filename,"w+")
+	service.open(filename,"r+")
 	then = time.clock()
 	content = service.read(filename)
+	service.seek(filename,0)
 	for i in range(len(content)):
 		service.write(filename, "b")
 	service.close(filename)
@@ -90,25 +89,23 @@ def test2(service, filename):
 def test3(service, filename):
 	then = time.clock()
 
-	service.open(filename, "w+")
-	service.read(filename)
-	service.seek(filename, 0)
-	content = service.read(filename)
-	for i in range(len(content)):
-		service.write(filename, "b")
-	service.close(filename)
-
 	service.open(filename, "r+")
-	service.read(filename)
+	content = service.read(filename)
 	service.seek(filename, 0)
 	service.write(filename, "asdf")
+	service.close(filename)
+
+	service.open(filename, "w+")
+	service.write(filename, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
+	service.seek(filename, 0)
+	service.read(filename)
 	service.close(filename)
 
 	service.open(filename, "a+")
 	service.seek(filename, 0)
 	service.read(filename)
 	service.seek(filename, 0)
-	service.write(filename, "asdf")
+	service.write(filename, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
 	service.close(filename)
 
 	service.exit()
@@ -263,8 +260,6 @@ def plotall(pfslist, tests, sizes):
 		colors = ['r','y','g','b','m','k','c']
 		rects = []
 		for i in range(NUM_MODES):
-			print "mode: " + str(i)
-			print test.get_size_std(i)
 			r = ax.bar(ind+(i*width), test.get_size_avgs(i), width, color=colors[i], yerr=test.get_size_std(i))
 			rects.append(r)
 
@@ -284,9 +279,9 @@ if __name__ == "__main__":
 		# test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
 		# test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
 		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
-		# test(testfunc=test3, num=3,    desc="Open the file in 3 different modes"),                                            \
+		test(testfunc=test3, num=3,    desc="Open the file in 3 different modes"),                                            \
 		# test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
-		test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
+		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
 		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
 		# test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
 		]

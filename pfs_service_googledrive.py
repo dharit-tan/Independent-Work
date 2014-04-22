@@ -97,7 +97,6 @@ class pfs_service_googledrive:
 		  'title': 'My document',
 		  'description': 'A test document',
 		  'mimeType': 'text/plain'
-		  'parents' : 
 		}
 
 		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
