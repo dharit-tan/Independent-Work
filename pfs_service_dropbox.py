@@ -7,7 +7,7 @@ import string
 import random
 
 # dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
-DROPBOX_DIR = os.environ['HOME'] + "/parrot_fs_dropbox_dir"
+DROPBOX_DIR = os.environ['HOME'] + "/pfs_dropbox_dir"
 
 # Get your app key and secret from the Dropbox developer website
 APP_KEY = '44hex53qvj1q6t9'

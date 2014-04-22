@@ -28,10 +28,6 @@ class test:
 		self.stats[mode][size.num].append(runtime)
 
 	def get_size_avgs(self, mode):
-		# ret = []
-		# for i in range(NUM_SIZES):
-		# 	ret.append(np.mean(self.stats[mode][i]))
-		# return ret
 		return [np.mean(self.stats[mode][i]) for i in range(NUM_SIZES)]
 
 	def get_size_std(self, mode):

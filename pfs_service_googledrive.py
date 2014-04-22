@@ -14,7 +14,7 @@ from apiclient.http import MediaFileUpload
 from oauth2client.client import OAuth2WebServerFlow
 
 # dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
-GOOGLEDRIVE_DIR = os.environ['HOME'] + "/parrot_fs_googledrive_dir"
+GOOGLEDRIVE_DIR = os.environ['HOME'] + "/pfs_googledrive_dir"
 
 # Copy your credentials from the console
 CLIENT_ID = '944870957971-qlhr323prli2tjis2nbup5ncl7i1ck23.apps.googleusercontent.com'
@@ -36,8 +36,6 @@ Modes:
 MODE_WRITE = 0
 MODE_EXIT = 1
 MODE_CLOSE = 2
-
-ANALYSIS = True
 
 class pfs_file_googledrive:
 	def __init__(self, filename, local_name, flags, fp, path):
@@ -63,9 +61,6 @@ class pfs_service_googledrive:
 		self.__update_current_dir()
 
 	def __authorize(self):
-		# Path to the file to upload
-		FILENAME = 'asdf'
-
 		# Run through the OAuth flow and retrieve credentials
 		flow = OAuth2WebServerFlow(CLIENT_ID, CLIENT_SECRET, OAUTH_SCOPE, REDIRECT_URI)
 		authorize_url = flow.step1_get_authorize_url()
@@ -89,30 +84,24 @@ class pfs_service_googledrive:
 
 		self.drive_service = build('drive', 'v2', http=http)
 
-		f = self.drive_service.files().insert(body={}, media_body=MediaFileUpload('asdf', mimetype='text/plain', resumable=True)).execute()
-		pprint.pprint(f)
-		# Insert a file
-		media_body = MediaFileUpload(FILENAME, mimetype='text/plain', resumable=True)
-		body = {
-		  'title': 'My document',
-		  'description': 'A test document',
-		  'mimeType': 'text/plain'
-		}
-
-		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
+		# f = self.drive_service.files().insert(body={}, media_body=MediaFileUpload('asdf', mimetype='text/plain', resumable=True)).execute()
+		# pprint.pprint(f)
 		# pprint.pprint(file)
 
 	def __upload(self, path):
 		old_current = os.getcwd()
 		os.chdir(GOOGLEDRIVE_DIR)
 		f = self.fd_table[path]
-		f.fp.seek(0)
-		if f.flags == "r": # don't re-upload if file was not supposed to be written to
-			# print "file is read only; did not upload"
-			pass
-		else:
-			response = self.client.put_file(f.path, f.fp, overwrite=True)
-			# print "file uploaded successfully"
+
+		# Insert a file
+		media_body = MediaFileUpload(FILENAME, mimetype='text/plain', resumable=True)
+		body = {
+		  'title': path,
+		  'description': 'A test document',
+		  'mimeType': 'text/plain'
+		}
+		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
+		
 		os.chdir(old_current)
 
 	def __check_path(self, filename):
@@ -138,52 +127,16 @@ class pfs_service_googledrive:
 
 	def open(self, filepath, flags="r"):
 		path = self.__check_path(filepath)
-		filename = filepath.split('/')[-1]
-		# print "filename: " + filename
-
-		# print "current_dir: " + self.current_dir
-		# print "trying to download: " + path
+		filename = filepath.split('/')[-1]  
 
 		# chdir to private temp dropbox directory
 		old_current = os.getcwd()
 		os.chdir(GOOGLEDRIVE_DIR)
 		
-		local_name = ''.join(random.choice(string.ascii_letters) for i in range(10))
-
-		if "r" in flags:   # error if file DNE
-			try:
-				downloaded_copy = self.client.get_file(path)
-			except dropbox.rest.ErrorResponse:
-				raise IOError("[Errno 2] No such file or directory: " + path)
-
-			# create file and write contents first
-			local_copy = open(local_name, "w")
-			for i in downloaded_copy.readlines():
-				local_copy.write(i)
-			local_copy.close()
-			local_copy = open(local_name, flags) # re-open with desired flags
-
-		elif "w" in flags: # don't care about file on dropbox, but must overwrite when uploading
-			local_copy = open(local_name, flags)
-
-		elif "a" in flags:
-			try:
-				downloaded_copy = self.client.get_file(path)
-			except dropbox.rest.ErrorResponse:
-				pass
-
-			# create file and write contents first
-			local_copy = open(local_name, "w")
-			for i in downloaded_copy.readlines():
-				local_copy.write(i)
-			local_copy.close()
-
-			local_copy = open(filename, flags) # re-open with desired flags and seek to end
-			local_copy.seek(0,2)
-
 		if path in self.fd_table:
 			self.close(path)
-		self.fd_table[path] = pfs_file_dropbox(filename, local_name, flags, local_copy, path)
+		local_copy = open(filename, flags) # re-open with desired flags
+		self.fd_table[path] = pfs_file_dropbox(filename, filename, flags, local_copy, path)
 
 		os.chdir(old_current)
 		return local_copy
@@ -242,36 +195,6 @@ class pfs_service_googledrive:
 		elif self.mode == MODE_CLOSE:
 			self.close2(filename)
 
-	def chdir(self, dirname=None):
-		if dirname == "..":
-			if self.current_dir == "/":
-				pass
-			else:
-				self.dir_path.pop()
-				self.__update_current_dir()
-		elif dirname == ".":
-			pass
-		elif not dirname or dirname == "/":
-			self.__reset_dir_path()
-			self.__update_current_dir()
-		else:
-			if dirname[0] == "/" or not dirname:
-				path = dirname
-			else:
-				path = self.current_dir + dirname
-			try:
-				metadata = self.client.metadata(path)
-			except dropbox.rest.ErrorResponse:
-				raise IOError("[Errno 2] No such file or directory: " + path)
-
-			if not metadata["is_dir"]:
-				raise OSError("[Errno 20] Not a directory: " + path)
-			else:
-				self.__reset_dir_path()
-				for i in path.split("/"):
-					self.dir_path.append(i)
-				self.__update_current_dir()
-
 	def read(self, filename, size=-1):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
@@ -309,30 +232,6 @@ class pfs_service_googledrive:
 			raise IOError("Not an open file: " + path)
 		self.fd_table[path].fp.seek(offset, from_what)
 
-	def remove(self, filename):
-		path = self.__check_path(filename)
-
-		if path in self.fd_table:
-			self.close(path)
-		try:
-			self.client.file_delete(path)
-		except dropbox.rest.ErrorResponse:
-			raise IOError("[Errno 2] No such file or directory: " + path)
-
-	def mkdir(self, dirname):
-		path = self.__check_path(dirname)
-		self.client.file_create_folder(path)
-
-	def rmdir(self, dirname):
-		path = self.__check_path(dirname)
-		try:
-			self.client.file_delete(path)
-		except dropbox.rest.ErrorResponse:
-			raise IOError("[Errno 2] No such file or directory: " + path)
-			
-	def getcwd(self):
-		return self.current_dir
-
 	def exit02(self):
 		keys = self.fd_table.keys()
 		for path in keys:
@@ -344,7 +243,7 @@ class pfs_service_googledrive:
 		os.chdir(GOOGLEDRIVE_DIR)
 		for local_name in keys:
 			f = open(local_name, "r")
-			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)
+			self.__upload(local_name)
 		os.chdir(old_current)
 		self.to_upload = {}
 
@@ -353,6 +252,3 @@ class pfs_service_googledrive:
 			self.exit02()
 		if self.mode == MODE_EXIT:
 			self.exit1()
-			
-		if not ANALYSIS:
-			self.client.disable_access_token()
