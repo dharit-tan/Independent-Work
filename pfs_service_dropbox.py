@@ -135,14 +135,15 @@ class pfs_service_dropbox:
 		elif "a" in flags:
 			try:
 				downloaded_copy = self.client.get_file(path)
+				
+				# create file and write contents first
+				local_copy = open(local_name, "w")
+				for i in downloaded_copy.readlines():
+					local_copy.write(i)
+				local_copy.close()
+
 			except dropbox.rest.ErrorResponse:
 				pass
-
-			# create file and write contents first
-			local_copy = open(local_name, "w")
-			for i in downloaded_copy.readlines():
-				local_copy.write(i)
-			local_copy.close()
 
 			local_copy = open(local_name, flags) # re-open with desired flags
 			# local_copy.seek(0,2) # seek to end?

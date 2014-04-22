@@ -101,12 +101,21 @@ def test3(service, filename):
 	service.read(filename)
 	service.close(filename)
 
-	service.open(filename, "a+")
-	service.seek(filename, 0)
-	service.read(filename)
-	service.seek(filename, 0)
-	service.write(filename, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
-	service.close(filename)
+	# service.open(filename, "a+")
+	# print "after open: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.seek(filename, 0)
+	# print "after seek: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.read(filename)
+	# print "after read: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.seek(filename, 0)
+	# print "after seek: " + str(service.fd_table['/'+filename].fp.tell())
+	# r = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content)))
+	# print r
+	# print "len(r): " +str(len(r))
+	# service.write(filename, r)
+	# print "len content: " + str(len(content))
+	# print "after write: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.close(filename)
 
 	service.exit()
 	now = time.clock()
@@ -279,7 +288,7 @@ if __name__ == "__main__":
 		# test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
 		# test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
 		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
-		test(testfunc=test3, num=3,    desc="Open the file in 3 different modes"),                                            \
+		test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
 		# test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
 		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
 		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
