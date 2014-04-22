@@ -249,10 +249,10 @@ def testall(pfslist, tests, sizes):
 				for i in range(ITERATIONS):
 					try:
 						runtime = test.testfunc(pfs, filename=size.sizestr)
+						test.add_runtime(pfs.mode, size, runtime)
+						print "MODE " + str(pfs.mode) + ": " + str(runtime)
 					except dropbox.rest.ErrorResponse:
 						pass
-					test.add_runtime(pfs.mode, size, runtime)
-					print "MODE " + str(pfs.mode) + ": " + str(runtime)
 
 def plotall(pfslist, tests, sizes):
 	width = 0.4 / float(NUM_MODES)

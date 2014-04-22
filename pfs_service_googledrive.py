@@ -4,6 +4,9 @@ from splinter import Browser
 import time
 import string
 import random
+import shutil
+
+from pydrive.auth import *
 
 # required by google drive
 import httplib2
@@ -77,16 +80,12 @@ class pfs_service_googledrive:
 		print b.find_by_id('code').first.value
 		code = b.find_by_id('code').first.value
 		credentials = flow.step2_exchange(code)
+		b.quit()
 
 		# Create an httplib2.Http object and authorize it with our credentials
 		http = httplib2.Http()
 		http = credentials.authorize(http)
-
 		self.drive_service = build('drive', 'v2', http=http)
-
-		# f = self.drive_service.files().insert(body={}, media_body=MediaFileUpload('asdf', mimetype='text/plain', resumable=True)).execute()
-		# pprint.pprint(f)
-		# pprint.pprint(file)
 
 	def __upload(self, path):
 		old_current = os.getcwd()
@@ -94,14 +93,15 @@ class pfs_service_googledrive:
 		f = self.fd_table[path]
 
 		# Insert a file
+
 		media_body = MediaFileUpload(f.filename, mimetype='text/plain', resumable=True)
 		body = {
 		  'title': f.filename,
 		  'description': 'A test document',
 		  'mimeType': 'text/plain'
 		}
-		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
-		
+		file = self.drive_service.files().update(fileId=f.filename, body=body, media_body=media_body).execute()
+
 		os.chdir(old_current)
 
 	def __check_path(self, filename):

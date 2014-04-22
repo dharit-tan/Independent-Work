@@ -6,6 +6,7 @@ from pfs_service_googledrive import *
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from apiclient import errors
 
 # GLOBAL VARS --------------------------------------- #
 ITERATIONS = 1
@@ -98,22 +99,6 @@ def test3(service, filename):
 	service.read(filename)
 	service.close(filename)
 
-	# service.open(filename, "a+")
-	# print "after open: " + str(service.fd_table['/'+filename].fp.tell())
-	# service.seek(filename, 0)
-	# print "after seek: " + str(service.fd_table['/'+filename].fp.tell())
-	# service.read(filename)
-	# print "after read: " + str(service.fd_table['/'+filename].fp.tell())
-	# service.seek(filename, 0)
-	# print "after seek: " + str(service.fd_table['/'+filename].fp.tell())
-	# r = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content)))
-	# print r
-	# print "len(r): " +str(len(r))
-	# service.write(filename, r)
-	# print "len content: " + str(len(content))
-	# print "after write: " + str(service.fd_table['/'+filename].fp.tell())
-	# service.close(filename)
-
 	service.exit()
 	now = time.clock()
 	return now - then
@@ -134,13 +119,6 @@ def test5(service, filename):
 	service.open(filename+'1',"r+")
 	then = time.clock()
 
-	# old = os.getcwd()
-	# os.chdir(DROPBOX_DIR)
-	# a = os.stat(service.fd_table['/'+filename].local_name).st_size
-	# b = os.stat(service.fd_table['/'+filename+'0'].local_name).st_size
-	# c = os.stat(service.fd_table['/'+filename+'1'].local_name).st_size
-	# os.chdir(old)
-
 	content = service.read(filename)
 	service.seek(filename, 0)
 	service.write(filename, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
@@ -150,20 +128,6 @@ def test5(service, filename):
 	content = service.read(filename+'1')
 	service.seek(filename+'1', 0)
 	service.write(filename+'1', ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
-
-	# old = os.getcwd()
-	# os.chdir(DROPBOX_DIR)
-	# d = os.stat(service.fd_table['/'+filename].local_name).st_size
-	# e = os.stat(service.fd_table['/'+filename+'0'].local_name).st_size
-	# f = os.stat(service.fd_table['/'+filename+'1'].local_name).st_size
-	# os.chdir(old)
-
-	# if (a != d):
-	# 	print filename + " size got changed"
-	# if (b != e):
-	# 	print filename+'0'+" size got changed"
-	# if (c != f):
-	# 	print filename+'1' + " size got changed"
 
 	service.close(filename)
 	service.close(filename+'0')
@@ -243,12 +207,12 @@ def testall(pfslist, tests, sizes):
 			print size.sizestr
 			for pfs in pfslist:
 				for i in range(ITERATIONS):
-					# try:
-					runtime = test.testfunc(pfs, filename=size.sizestr)
-					# except dropbox.rest.ErrorResponse:
-					# 	pass
-					test.add_runtime(pfs.mode, size, runtime)
-					print "MODE " + str(pfs.mode) + ": " + str(runtime)
+					try:
+						runtime = test.testfunc(pfs, filename=size.sizestr)
+						test.add_runtime(pfs.mode, size, runtime)
+						print "MODE " + str(pfs.mode) + ": " + str(runtime)
+					except errors.HttpError:
+						pass
 
 def plotall(pfslist, tests, sizes):
 	width = 0.4 / float(NUM_MODES)
