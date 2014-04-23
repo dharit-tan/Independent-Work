@@ -68,21 +68,45 @@ class pfs_service_box:
 		b.quit()
 
 	def __upload(self, path):
+		f = self.fd_table[path]
+		if f.flags == "r": # don't re-upload if file was not supposed to be written to
+			return
+
 		old_current = os.getcwd()
 		os.chdir(BOX_DIR)
-		f = self.fd_table[path]
 		oldpos = f.fp.tell()
 		f.fp.seek(0)
+		content = f.fp.read()
+		f.fp.seek(0)
 
-		if f.flags == "r": # don't re-upload if file was not supposed to be written to
-			pass
-		else:
-			response = self.client.upload_file(f.filename.join(random.choice(string.ascii_letters) for i in range(10)), f.fp)
+		newname = f.filename.join(random.choice(string.ascii_letters) for i in range(10))
+		response = self.client.upload_file(newname, f.fp)
 
-		shutil.copy2(REAL_BOX_DIR+path, f.filename)
-		f.fp = open(f.filename)
+
+		f.fp = open(f.filename, 'w+')
+		f.fp.write(content)
+		f.fp.close()
+		print "wrote new file: " + content
+		f.fp = open(f.filename, f.flags)
 		f.fp.seek(oldpos)
 		os.chdir(old_current)
+
+		# f = self.fd_table[path]
+		# if f.flags == "r": # don't re-upload if file was not supposed to be written to
+		# 	return
+
+		# old_current = os.getcwd()
+		# os.chdir(BOX_DIR)
+		# oldpos = f.fp.tell()
+		# f.fp.seek(0)
+		# newname = f.filename.join(random.choice(string.ascii_letters) for i in range(10))
+		# response = self.client.upload_file(newname, f.fp)
+
+		# time.sleep(10)
+		# shutil.copy2(REAL_BOX_DIR+'/'+newname, f.filename)
+		# f.fp = open(f.filename)
+		# f.fp.seek(oldpos)
+		# os.chdir(old_current)
 
 	def __check_path(self, filename):
 		if filename[0] == '/':
