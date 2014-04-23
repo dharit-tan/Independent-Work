@@ -18,6 +18,7 @@ from oauth2client.client import OAuth2WebServerFlow
 
 # dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
 GOOGLEDRIVE_DIR = os.environ['HOME'] + "/pfs_googledrive_dir"
+GOOGLEDRIVE_TEMP_DIR = os.environ['HOME'] + "/googledrivetmp"
 
 # Copy your credentials from the console
 CLIENT_ID = '944870957971-qlhr323prli2tjis2nbup5ncl7i1ck23.apps.googleusercontent.com'
@@ -92,7 +93,15 @@ class pfs_service_googledrive:
 		os.chdir(GOOGLEDRIVE_DIR)
 		f = self.fd_table[path]
 
-		# Insert a file
+		oldpos = f.fp.tell()
+		f.fp.seek(0)
+		content = f.fp.read()
+		f.fp.seek(oldpos)
+
+		os.chdir(GOOGLEDRIVE_TEMP_DIR)
+		g = open(f.filename,"w+")
+		g.write(content)
+		g.close()
 
 		media_body = MediaFileUpload(f.filename, mimetype='text/plain', resumable=True)
 		body = {
@@ -100,7 +109,7 @@ class pfs_service_googledrive:
 		  'description': 'A test document',
 		  'mimeType': 'text/plain'
 		}
-		file = self.drive_service.files().update(fileId=f.filename, body=body, media_body=media_body).execute()
+		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
 
 		os.chdir(old_current)
 
