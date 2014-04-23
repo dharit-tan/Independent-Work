@@ -1,20 +1,16 @@
 import os
-import subprocess
-import dropbox
+import box
 from splinter import Browser
 import time
 import string
 import random
+import shutil
 
-# dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
-DROPBOX_DIR = os.environ['HOME'] + "/pfs_box_dir"
+BOX_DIR = os.environ['HOME'] + "/pfs_box_dir"
+REAL_BOX_DIR = os.environ['HOME'] + '/Box Sync'
 
-# Get your app key and secret from the Dropbox developer website
-APP_KEY = '44hex53qvj1q6t9'
-APP_SECRET = 'on3s6o9f5ifg90w'
-
-# ACCESS_TYPE should be 'dropbox' or 'app_folder' as configured for your app
-ACCESS_TYPE = 'app_folder'
+# APP_KEY = '6w95mt5qhinvzmwq5d3ijy92hb9ev00x'
+# APP_SECRET = 'zYo5zPHVnt48gKQe2hsVn6b2Ov27lF4g'
 
 """
 Modes:
@@ -29,7 +25,7 @@ MODE_EXIT = 2
 
 ANALYSIS = True
 
-class pfs_file_dropbox:
+class pfs_file_box:
 	def __init__(self, filename, local_name, flags, fp, path):
 		self.filename = filename         # file name
 		self.local_name = local_name     # file name on local system
@@ -37,7 +33,7 @@ class pfs_file_dropbox:
 		self.fp = fp                     # file pointer
 		self.path = path                 # path to file on dropbox
 
-class pfs_service_dropbox:
+class pfs_service_box:
 
 	# PRIVATE METHODS ----------------------------------------------------------#
 
@@ -53,35 +49,38 @@ class pfs_service_dropbox:
 		self.__update_current_dir()
 
 	def __authorize(self):
-		flow = dropbox.client.DropboxOAuth2FlowNoRedirect(APP_KEY, APP_SECRET)
-
-		authorize_url = flow.start()
 		b = Browser('chrome')
-		b.visit(authorize_url)
+		b.visit("http://box-token-generator.herokuapp.com/")
 
-		if not b.find_by_name('allow_access'):
-			b.find_by_name('login_email')[1].fill('dtantivi@princeton.edu')
-			b.find_by_name('login_password')[1].fill('dharit1250')
-			b.find_by_css('.login-button')[0].click()
-		time.sleep(2)
-		b.find_by_name('allow_access').first.click()
-		code = b.find_by_id('auth-code').first.text
-		access_token, user_id = flow.finish(code)
+		if b.find_link_by_href('set_client_credentials'):
+			b.visit('http://box-token-generator.herokuapp.com/set_client_credentials')
+			time.sleep(2)
+		
+			b.find_by_id('login').first.fill('dtantivi@princeton.edu')
+			b.find_by_id('password').first.fill('dharit1250')
+			b.find_by_name('login_submit').first.click()
 
-		self.client = dropbox.client.DropboxClient(access_token)
+			b.find_by_id('consent_accept_button').first.click()
+	
+		code = b.find_by_tag('h4')[1].text
+		self.client = box.BoxClient(code)
+
 		b.quit()
-		# print 'linked account: ' + str(self.client.account_info())
 
 	def __upload(self, path):
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(BOX_DIR)
 		f = self.fd_table[path]
 		oldpos = f.fp.tell()
 		f.fp.seek(0)
+
 		if f.flags == "r": # don't re-upload if file was not supposed to be written to
 			pass
 		else:
-			response = self.client.put_file(f.path, f.fp, overwrite=True)
+			response = self.client.upload_file(f.filename.join(random.choice(string.ascii_letters) for i in range(10)), f.fp)
+
+		shutil.copy2(REAL_BOX_DIR+path, f.filename)
+		f.fp = open(f.filename)
 		f.fp.seek(oldpos)
 		os.chdir(old_current)
 
@@ -112,47 +111,49 @@ class pfs_service_dropbox:
 
 		# chdir to private temp dropbox directory
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(BOX_DIR)
 		
-		local_name = ''.join(random.choice(string.ascii_letters) for i in range(10))
+		# local_name = ''.join(random.choice(string.ascii_letters) for i in range(10))
 
-		if "r" in flags:   # error if file DNE
-			try:
-				downloaded_copy = self.client.get_file(path)
-			except dropbox.rest.ErrorResponse:
-				raise IOError("[Errno 2] No such file or directory: " + path)
+		# print filename
 
-			# create file and write contents first
-			local_copy = open(local_name, "w")
-			for i in downloaded_copy.readlines():
-				local_copy.write(i)
-			local_copy.close()
-			local_copy = open(local_name, flags) # re-open with desired flags
+		# if "r" in flags:   # error if file DNE
+		# 	# try:
+		# 	downloaded_copy = self.client.download_file(filename)
+		# 	# except box.client.ItemDoesNotExist:
+		# 	# 	raise IOError("[Errno 2] No such file or directory: " + path)
 
-		elif "w" in flags: # don't care about file on dropbox, but must overwrite when uploading
-			local_copy = open(local_name, flags)
+		# 	# create file and write contents first
+		# 	local_copy = open(local_name, "w")
+		# 	for i in downloaded_copy.readlines():
+		# 		local_copy.write(i)
+		# 	local_copy.close()
+		# 	local_copy = open(local_name, flags) # re-open with desired flags
 
-		elif "a" in flags:
-			try:
-				downloaded_copy = self.client.get_file(path)
-				
-				# create file and write contents first
-				local_copy = open(local_name, "w")
-				for i in downloaded_copy.readlines():
-					local_copy.write(i)
-				local_copy.close()
+		# elif "w" in flags: # don't care about file on dropbox, but must overwrite when uploading
+		# 	local_copy = open(local_name, flags)
 
-			except dropbox.rest.ErrorResponse:
-				pass
+		# elif "a" in flags:
+		# 	# try:
+		# 	downloaded_copy = self.client.download(filename)
+			
+		# 	# create file and write contents first
+		# 	local_copy = open(local_name, "w")
+		# 	for i in downloaded_copy.readlines():
+		# 		local_copy.write(i)
+		# 	local_copy.close()
 
-			local_copy = open(local_name, flags) # re-open with desired flags
+		# 	# except box.client.ItemDoesNotExist:
+		# 	# 	pass
+
+			# local_copy = open(filename, flags) # re-open with desired flags
 			# local_copy.seek(0,2) # seek to end?
 
+		local_copy = open(filename, flags) # re-open with desired flags
 		if path in self.fd_table:
 			self.close(path)
-		self.fd_table[path] = pfs_file_dropbox(filename, local_name, flags, local_copy, path)
+		self.fd_table[path] = pfs_file_box(filename, filename, flags, local_copy, path)
 
-		# os.remove(filename)
 		os.chdir(old_current)
 		return local_copy
 
@@ -165,7 +166,7 @@ class pfs_service_dropbox:
 		self.fd_table[path].fp.close()
 
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(BOX_DIR)
 		os.remove(self.fd_table[path].local_name)
 		os.chdir(old_current)
 
@@ -183,7 +184,7 @@ class pfs_service_dropbox:
 		self.fd_table[path].fp.close()
 
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(BOX_DIR)
 		os.remove(self.fd_table[path].local_name)
 		os.chdir(old_current)
 
@@ -227,10 +228,10 @@ class pfs_service_dropbox:
 				path = dirname
 			else:
 				path = self.current_dir + dirname
-			try:
-				metadata = self.client.metadata(path)
-			except dropbox.rest.ErrorResponse:
-				raise IOError("[Errno 2] No such file or directory: " + path)
+			# try:
+			metadata = self.client.metadata(path)
+			# except box.client.ItemDoesNotExist:
+			# 	raise IOError("[Errno 2] No such file or directory: " + path)
 
 			if not metadata["is_dir"]:
 				raise OSError("[Errno 20] Not a directory: " + path)
@@ -282,21 +283,21 @@ class pfs_service_dropbox:
 
 		if path in self.fd_table:
 			self.close(path)
-		try:
-			self.client.file_delete(path)
-		except dropbox.rest.ErrorResponse:
-			raise IOError("[Errno 2] No such file or directory: " + path)
+		# try:
+		self.client.delete_file(path)
+		# except box.client.ItemDoesNotExist:
+		# 	raise IOError("[Errno 2] No such file or directory: " + path)
 
-	def mkdir(self, dirname):
-		path = self.__check_path(dirname)
-		self.client.file_create_folder(path)
+	# def mkdir(self, dirname):
+	# 	path = self.__check_path(dirname)
+	# 	self.client.file_create_folder(path)
 
-	def rmdir(self, dirname):
-		path = self.__check_path(dirname)
-		try:
-			self.client.file_delete(path)
-		except dropbox.rest.ErrorResponse:
-			raise IOError("[Errno 2] No such file or directory: " + path)
+	# def rmdir(self, dirname):
+	# 	path = self.__check_path(dirname)
+	# 	try:
+	# 		self.client.file_delete(path)
+	# 	except box.client.ItemDoesNotExist:
+	# 		raise IOError("[Errno 2] No such file or directory: " + path)
 			
 	def getcwd(self):
 		return self.current_dir
@@ -309,7 +310,7 @@ class pfs_service_dropbox:
 	def exit2(self):
 		keys = self.to_upload.keys()
 		old_current = os.getcwd()
-		os.chdir(DROPBOX_DIR)
+		os.chdir(BOX_DIR)
 		for local_name in keys:
 			f = open(local_name, "r")
 			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)

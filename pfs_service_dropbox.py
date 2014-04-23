@@ -1,5 +1,4 @@
 import os
-import subprocess
 import dropbox
 from splinter import Browser
 import time

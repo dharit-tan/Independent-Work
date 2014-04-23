@@ -2,11 +2,10 @@
 
 # import requests
 import time
-from pfs_service_googledrive import *
+from pfs_service_box import *
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from apiclient import errors
 
 # GLOBAL VARS --------------------------------------- #
 ITERATIONS = 1
@@ -29,6 +28,10 @@ class test:
 		self.stats[mode][size.num].append(runtime)
 
 	def get_size_avgs(self, mode):
+		# ret = []
+		# for i in range(NUM_SIZES):
+		# 	ret.append(np.mean(self.stats[mode][i]))
+		# return ret
 		return [np.mean(self.stats[mode][i]) for i in range(NUM_SIZES)]
 
 	def get_size_std(self, mode):
@@ -40,9 +43,9 @@ class size:
 		self.size = size
 		self.num = num
 
-class pfs_wrapper(pfs_service_googledrive):
+class pfs_wrapper(pfs_service_box):
 	def __init__(self, mode, desc):
-		pfs_service_googledrive.__init__(self, mode)
+		pfs_service_box.__init__(self, mode)
 		self.desc = desc
 
 # TESTS --------------------------------------- #
@@ -99,6 +102,22 @@ def test3(service, filename):
 	service.read(filename)
 	service.close(filename)
 
+	# service.open(filename, "a+")
+	# print "after open: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.seek(filename, 0)
+	# print "after seek: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.read(filename)
+	# print "after read: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.seek(filename, 0)
+	# print "after seek: " + str(service.fd_table['/'+filename].fp.tell())
+	# r = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content)))
+	# print r
+	# print "len(r): " +str(len(r))
+	# service.write(filename, r)
+	# print "len content: " + str(len(content))
+	# print "after write: " + str(service.fd_table['/'+filename].fp.tell())
+	# service.close(filename)
+
 	service.exit()
 	now = time.clock()
 	return now - then
@@ -119,6 +138,13 @@ def test5(service, filename):
 	service.open(filename+'1',"r+")
 	then = time.clock()
 
+	# old = os.getcwd()
+	# os.chdir(DROPBOX_DIR)
+	# a = os.stat(service.fd_table['/'+filename].local_name).st_size
+	# b = os.stat(service.fd_table['/'+filename+'0'].local_name).st_size
+	# c = os.stat(service.fd_table['/'+filename+'1'].local_name).st_size
+	# os.chdir(old)
+
 	content = service.read(filename)
 	service.seek(filename, 0)
 	service.write(filename, ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
@@ -128,6 +154,20 @@ def test5(service, filename):
 	content = service.read(filename+'1')
 	service.seek(filename+'1', 0)
 	service.write(filename+'1', ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(len(content))))
+
+	# old = os.getcwd()
+	# os.chdir(DROPBOX_DIR)
+	# d = os.stat(service.fd_table['/'+filename].local_name).st_size
+	# e = os.stat(service.fd_table['/'+filename+'0'].local_name).st_size
+	# f = os.stat(service.fd_table['/'+filename+'1'].local_name).st_size
+	# os.chdir(old)
+
+	# if (a != d):
+	# 	print filename + " size got changed"
+	# if (b != e):
+	# 	print filename+'0'+" size got changed"
+	# if (c != f):
+	# 	print filename+'1' + " size got changed"
 
 	service.close(filename)
 	service.close(filename+'0')
@@ -207,12 +247,12 @@ def testall(pfslist, tests, sizes):
 			print size.sizestr
 			for pfs in pfslist:
 				for i in range(ITERATIONS):
-					try:
-						runtime = test.testfunc(pfs, filename=size.sizestr)
-						test.add_runtime(pfs.mode, size, runtime)
-						print "}MODE " + str(pfs.mode) + ": " + str(runtime)
-					except errors.HttpError:
-						pass
+					# try:
+					runtime = test.testfunc(pfs, filename=size.sizestr)
+					test.add_runtime(pfs.mode, size, runtime)
+					print "MODE " + str(pfs.mode) + ": " + str(runtime)
+					# except dropbox.rest.ErrorResponse:
+					# 	pass
 
 def plotall(pfslist, tests, sizes):
 	width = 0.4 / float(NUM_MODES)
@@ -248,9 +288,9 @@ if __name__ == "__main__":
 	tests = [ \
 		test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
 		test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
-		test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
-		test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
-		test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
+		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
+		# test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
+		# test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
 		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
 		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
 		# test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
