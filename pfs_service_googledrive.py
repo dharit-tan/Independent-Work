@@ -4,7 +4,6 @@ from splinter import Browser
 import time
 import string
 import random
-import shutil
 
 from pydrive.auth import *
 
@@ -16,9 +15,7 @@ from apiclient.discovery import build
 from apiclient.http import MediaFileUpload
 from oauth2client.client import OAuth2WebServerFlow
 
-# dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
 GOOGLEDRIVE_DIR = os.environ['HOME'] + "/pfs_googledrive_dir"
-GOOGLEDRIVE_TEMP_DIR = os.environ['HOME'] + "/googledrivetmp"
 
 # Copy your credentials from the console
 CLIENT_ID = '944870957971-qlhr323prli2tjis2nbup5ncl7i1ck23.apps.googleusercontent.com'
@@ -38,8 +35,8 @@ Modes:
 """
 
 MODE_WRITE = 0
-MODE_EXIT = 1
-MODE_CLOSE = 2
+MODE_CLOSE = 1
+MODE_EXIT = 2
 
 class pfs_file_googledrive:
 	def __init__(self, filename, local_name, flags, fp, path):
@@ -47,7 +44,7 @@ class pfs_file_googledrive:
 		self.local_name = local_name     # file name on local system
 		self.flags = flags               # file permission flags
 		self.fp = fp                     # file pointer
-		self.path = path                 # path to file on dropbox
+		self.path = path                 # path to file on google drive
 
 class pfs_service_googledrive:
 
@@ -76,9 +73,9 @@ class pfs_service_googledrive:
 			b.find_by_id('Email').first.fill('tortorareed@gmail.com')
 			b.find_by_id('Passwd').first.fill('dharit1250')
 			b.find_by_id('signIn').first.click()
-		time.sleep(2)
+		time.sleep(3)
 		b.find_by_id('submit_approve_access').first.click()
-		print b.find_by_id('code').first.value
+		time.sleep(3)
 		code = b.find_by_id('code').first.value
 		credentials = flow.step2_exchange(code)
 		b.quit()
@@ -95,13 +92,6 @@ class pfs_service_googledrive:
 
 		oldpos = f.fp.tell()
 		f.fp.seek(0)
-		content = f.fp.read()
-		f.fp.seek(oldpos)
-
-		os.chdir(GOOGLEDRIVE_TEMP_DIR)
-		g = open(f.filename,"w+")
-		g.write(content)
-		g.close()
 
 		media_body = MediaFileUpload(f.filename, mimetype='text/plain', resumable=True)
 		body = {
@@ -111,6 +101,7 @@ class pfs_service_googledrive:
 		}
 		file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
 
+		f.fp.seek(oldpos)
 		os.chdir(old_current)
 
 	def __check_path(self, filename):
@@ -136,15 +127,15 @@ class pfs_service_googledrive:
 
 	def open(self, filepath, flags="r"):
 		path = self.__check_path(filepath)
-		filename = filepath.split('/')[-1]  
+		filename = filepath.split('/')[-1]
 
-		# chdir to private temp dropbox directory
+		# chdir to private box directory
 		old_current = os.getcwd()
 		os.chdir(GOOGLEDRIVE_DIR)
-		
+
+		local_copy = open(filename, flags) # re-open with desired flags
 		if path in self.fd_table:
 			self.close(path)
-		local_copy = open(filename, flags) # re-open with desired flags
 		self.fd_table[path] = pfs_file_googledrive(filename, filename, flags, local_copy, path)
 
 		os.chdir(old_current)
@@ -157,16 +148,22 @@ class pfs_service_googledrive:
 			raise IOError("Not an open file: " + path)
 
 		self.fd_table[path].fp.close()
+		del self.fd_table[path]
 
-		old_current = os.getcwd()
-		os.chdir(GOOGLEDRIVE_DIR)
-		os.remove(self.fd_table[path].local_name)
-		os.chdir(old_current)
+	# upload on close()
+	def close1(self, filename):
+		path = self.__check_path(filename)
+		if path not in self.fd_table:
+			raise IOError("Not an open file: " + path)
 
+		# upload file first
+		self.__upload(path)
+
+		self.fd_table[path].fp.close()
 		del self.fd_table[path]
 
 	# no upload on close()
-	def close1(self, filename):
+	def close2(self, filename):
 		path = self.__check_path(filename)
 		if path not in self.fd_table:
 			raise IOError("Not an open file: " + path)
@@ -178,30 +175,12 @@ class pfs_service_googledrive:
 
 		del self.fd_table[path]
 
-	# upload on close()
-	def close2(self, filename):
-		path = self.__check_path(filename)
-		if path not in self.fd_table:
-			raise IOError("Not an open file: " + path)
-
-		# upload file first
-		self.__upload(path)
-
-		self.fd_table[path].fp.close()
-
-		old_current = os.getcwd()
-		os.chdir(GOOGLEDRIVE_DIR)
-		os.remove(self.fd_table[path].local_name)
-		os.chdir(old_current)
-
-		del self.fd_table[path]
-
 	def close(self, filename):
 		if self.mode == MODE_WRITE:
 			self.close0(filename)
-		elif self.mode == MODE_EXIT:
-			self.close1(filename)
 		elif self.mode == MODE_CLOSE:
+			self.close1(filename)
+		elif self.mode == MODE_EXIT:
 			self.close2(filename)
 
 	def read(self, filename, size=-1):
@@ -240,24 +219,33 @@ class pfs_service_googledrive:
 		if path not in self.fd_table:
 			raise IOError("Not an open file: " + path)
 		self.fd_table[path].fp.seek(offset, from_what)
+			
+	def getcwd(self):
+		return self.current_dir
 
-	def exit02(self):
+	def exit01(self):
 		keys = self.fd_table.keys()
 		for path in keys:
 			self.close(path)
 
-	def exit1(self):
+	def exit2(self):
 		keys = self.to_upload.keys()
 		old_current = os.getcwd()
 		os.chdir(GOOGLEDRIVE_DIR)
 		for local_name in keys:
 			f = open(local_name, "r")
-			self.__upload(local_name)
+			media_body = MediaFileUpload(local_name, mimetype='text/plain', resumable=True)
+			body = {
+			  'title': local_name,
+			  'description': 'A test document',
+			  'mimeType': 'text/plain'
+			}
+			file = self.drive_service.files().insert(body=body, media_body=media_body).execute()
 		os.chdir(old_current)
 		self.to_upload = {}
 
 	def exit(self):
 		if self.mode == MODE_WRITE or self.mode == MODE_CLOSE:
-			self.exit02()
+			self.exit01()
 		if self.mode == MODE_EXIT:
-			self.exit1()
+			self.exit2()

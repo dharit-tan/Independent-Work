@@ -9,9 +9,9 @@ import os
 from apiclient import errors
 
 # GLOBAL VARS --------------------------------------- #
-ITERATIONS = 1
-NUM_MODES = 1
-NUM_SIZES = 1
+ITERATIONS = 50
+NUM_MODES = 3
+NUM_SIZES = 4
 
 # CLASSES --------------------------------------- #
 class test:
@@ -75,9 +75,8 @@ def test1(service, filename):
 def test2(service, filename):
 	service.open(filename,"r+")
 	then = time.clock()
-	content = service.read(filename)
 	service.seek(filename,0)
-	for i in range(len(content)):
+	for i in range(20):
 		service.write(filename, "b")
 	service.close(filename)
 	service.exit()
@@ -210,7 +209,7 @@ def testall(pfslist, tests, sizes):
 					try:
 						runtime = test.testfunc(pfs, filename=size.sizestr)
 						test.add_runtime(pfs.mode, size, runtime)
-						print "}MODE " + str(pfs.mode) + ": " + str(runtime)
+						print "MODE " + str(pfs.mode) + ": " + str(runtime)
 					except errors.HttpError:
 						pass
 
@@ -220,7 +219,7 @@ def plotall(pfslist, tests, sizes):
 
 	for test in tests:
 		ax = plt.subplot(1,1,1)
-		ax.set_title('Elapsed Time for Test ' + str(test.num) + ' for Various Modes')
+		ax.set_title('Elapsed Time for Test ' + str(test.num) + ' for Various Modes (Google Drive)')
 		ax.set_ylabel('Time')
 		ax.set_xlabel('File Sizes')
 		ax.set_xticks(ind+0.2)
@@ -251,20 +250,20 @@ if __name__ == "__main__":
 		test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
 		test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
 		test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
-		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
-		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
-		# test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
+		test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
+		test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
+		test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
 		]
 	pfslist = [ \
 		pfs_wrapper(MODE_WRITE,   "0: Upload after every write"),     \
-		# pfs_wrapper(MODE_CLOSE,   "1: Upload on close()"),            \
-		# pfs_wrapper(MODE_EXIT,    "2: Upload only during exit"),      \
+		pfs_wrapper(MODE_CLOSE,   "1: Upload on close()"),            \
+		pfs_wrapper(MODE_EXIT,    "2: Upload only during exit"),      \
 		]
 	sizes = [ \
 		size("1kb",    1024,       0),    \
-		# size("10kb",   10240,      1),    \
-		# size("100kb",  102400,     2),    \
-		# size("1mb",    1048576,    3),    \
+		size("10kb",   10240,      1),    \
+		size("100kb",  102400,     2),    \
+		size("1mb",    1048576,    3),    \
 		]
 
 

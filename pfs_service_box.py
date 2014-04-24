@@ -4,13 +4,8 @@ from splinter import Browser
 import time
 import string
 import random
-import shutil
 
 BOX_DIR = os.environ['HOME'] + "/pfs_box_dir"
-REAL_BOX_DIR = os.environ['HOME'] + '/Box Sync'
-
-# APP_KEY = '6w95mt5qhinvzmwq5d3ijy92hb9ev00x'
-# APP_SECRET = 'zYo5zPHVnt48gKQe2hsVn6b2Ov27lF4g'
 
 """
 Modes:
@@ -22,8 +17,6 @@ Modes:
 MODE_WRITE = 0
 MODE_CLOSE = 1
 MODE_EXIT = 2
-
-ANALYSIS = True
 
 class pfs_file_box:
 	def __init__(self, filename, local_name, flags, fp, path):
@@ -64,7 +57,6 @@ class pfs_service_box:
 	
 		code = b.find_by_tag('h4')[1].text
 		self.client = box.BoxClient(code)
-
 		b.quit()
 
 	def __upload(self, path):
@@ -74,39 +66,13 @@ class pfs_service_box:
 
 		old_current = os.getcwd()
 		os.chdir(BOX_DIR)
+
 		oldpos = f.fp.tell()
 		f.fp.seek(0)
-		content = f.fp.read()
-		f.fp.seek(0)
-
-		newname = f.filename.join(random.choice(string.ascii_letters) for i in range(10))
-		response = self.client.upload_file(newname, f.fp)
-
-
-		f.fp = open(f.filename, 'w+')
-		f.fp.write(content)
-		f.fp.close()
-		print "wrote new file: " + content
-		f.fp = open(f.filename, f.flags)
+		response = self.client.upload_file(f.filename+"".join(random.choice(string.ascii_letters) for i in range(10)), f.fp)
+		
 		f.fp.seek(oldpos)
 		os.chdir(old_current)
-
-		# f = self.fd_table[path]
-		# if f.flags == "r": # don't re-upload if file was not supposed to be written to
-		# 	return
-
-		# old_current = os.getcwd()
-		# os.chdir(BOX_DIR)
-		# oldpos = f.fp.tell()
-		# f.fp.seek(0)
-		# newname = f.filename.join(random.choice(string.ascii_letters) for i in range(10))
-		# response = self.client.upload_file(newname, f.fp)
-
-		# time.sleep(10)
-		# shutil.copy2(REAL_BOX_DIR+'/'+newname, f.filename)
-		# f.fp = open(f.filename)
-		# f.fp.seek(oldpos)
-		# os.chdir(old_current)
 
 	def __check_path(self, filename):
 		if filename[0] == '/':
@@ -133,45 +99,9 @@ class pfs_service_box:
 		path = self.__check_path(filepath)
 		filename = filepath.split('/')[-1]
 
-		# chdir to private temp dropbox directory
+		# chdir to private box directory
 		old_current = os.getcwd()
 		os.chdir(BOX_DIR)
-		
-		# local_name = ''.join(random.choice(string.ascii_letters) for i in range(10))
-
-		# print filename
-
-		# if "r" in flags:   # error if file DNE
-		# 	# try:
-		# 	downloaded_copy = self.client.download_file(filename)
-		# 	# except box.client.ItemDoesNotExist:
-		# 	# 	raise IOError("[Errno 2] No such file or directory: " + path)
-
-		# 	# create file and write contents first
-		# 	local_copy = open(local_name, "w")
-		# 	for i in downloaded_copy.readlines():
-		# 		local_copy.write(i)
-		# 	local_copy.close()
-		# 	local_copy = open(local_name, flags) # re-open with desired flags
-
-		# elif "w" in flags: # don't care about file on dropbox, but must overwrite when uploading
-		# 	local_copy = open(local_name, flags)
-
-		# elif "a" in flags:
-		# 	# try:
-		# 	downloaded_copy = self.client.download(filename)
-			
-		# 	# create file and write contents first
-		# 	local_copy = open(local_name, "w")
-		# 	for i in downloaded_copy.readlines():
-		# 		local_copy.write(i)
-		# 	local_copy.close()
-
-		# 	# except box.client.ItemDoesNotExist:
-		# 	# 	pass
-
-			# local_copy = open(filename, flags) # re-open with desired flags
-			# local_copy.seek(0,2) # seek to end?
 
 		local_copy = open(filename, flags) # re-open with desired flags
 		if path in self.fd_table:
@@ -189,10 +119,9 @@ class pfs_service_box:
 
 		self.fd_table[path].fp.close()
 
-		old_current = os.getcwd()
-		os.chdir(BOX_DIR)
-		os.remove(self.fd_table[path].local_name)
-		os.chdir(old_current)
+		# old_current = os.getcwd()
+		# os.chdir(BOX_DIR)
+		# os.chdir(old_current)
 
 		del self.fd_table[path]
 
@@ -207,10 +136,9 @@ class pfs_service_box:
 
 		self.fd_table[path].fp.close()
 
-		old_current = os.getcwd()
-		os.chdir(BOX_DIR)
-		os.remove(self.fd_table[path].local_name)
-		os.chdir(old_current)
+		# old_current = os.getcwd()
+		# os.chdir(BOX_DIR)
+		# os.chdir(old_current)
 
 		del self.fd_table[path]
 
@@ -252,10 +180,10 @@ class pfs_service_box:
 				path = dirname
 			else:
 				path = self.current_dir + dirname
-			# try:
-			metadata = self.client.metadata(path)
-			# except box.client.ItemDoesNotExist:
-			# 	raise IOError("[Errno 2] No such file or directory: " + path)
+			try:
+				metadata = self.client.metadata(path)
+			except box.client.ItemDoesNotExist:
+				raise IOError("[Errno 2] No such file or directory: " + path)
 
 			if not metadata["is_dir"]:
 				raise OSError("[Errno 20] Not a directory: " + path)
@@ -307,21 +235,10 @@ class pfs_service_box:
 
 		if path in self.fd_table:
 			self.close(path)
-		# try:
-		self.client.delete_file(path)
-		# except box.client.ItemDoesNotExist:
-		# 	raise IOError("[Errno 2] No such file or directory: " + path)
-
-	# def mkdir(self, dirname):
-	# 	path = self.__check_path(dirname)
-	# 	self.client.file_create_folder(path)
-
-	# def rmdir(self, dirname):
-	# 	path = self.__check_path(dirname)
-	# 	try:
-	# 		self.client.file_delete(path)
-	# 	except box.client.ItemDoesNotExist:
-	# 		raise IOError("[Errno 2] No such file or directory: " + path)
+		try:
+			self.client.delete_file(filename)
+		except box.client.ItemDoesNotExist:
+			raise IOError("[Errno 2] No such file or directory: " + filename)
 			
 	def getcwd(self):
 		return self.current_dir
@@ -337,8 +254,8 @@ class pfs_service_box:
 		os.chdir(BOX_DIR)
 		for local_name in keys:
 			f = open(local_name, "r")
-			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)
-			os.remove(local_name)
+			self.client.upload_file(self.to_upload[local_name]+"".join(random.choice(string.ascii_letters) for i in range(10)), f)
+			f.close()
 		os.chdir(old_current)
 		self.to_upload = {}
 
@@ -347,6 +264,3 @@ class pfs_service_box:
 			self.exit01()
 		if self.mode == MODE_EXIT:
 			self.exit2()
-			
-		if not ANALYSIS:
-			self.client.disable_access_token()

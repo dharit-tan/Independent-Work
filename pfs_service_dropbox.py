@@ -312,6 +312,7 @@ class pfs_service_dropbox:
 		for local_name in keys:
 			f = open(local_name, "r")
 			response = self.client.put_file(self.to_upload[local_name], f, overwrite=True)
+			f.close()
 			os.remove(local_name)
 		os.chdir(old_current)
 		self.to_upload = {}
