@@ -5,14 +5,14 @@ Title of Project?
 - Introduction
 	- Background: Parrot
 - Description of module
-	- File descriptor table
+	- Object oriented design
+	- Supports all basic filesystem operations
+	- Only connecting points to remote servers are in upload (whose position is determined by upload strategy) and in download (in open())
 	- Directory mechanism
+	- File descriptor table
 	- Authorization
 		- Register on Dropbox
 		- Janky splinter code to automate logging in
-	- Object oriented design
-	- Supports all basic filesystem operations
-	- Only connecting points  to remote servers are in upload (whose position is determined by upload strategy) and in download (in open())
 	- Clutter-prevention mechanism for local filesystem
 - Description of data gathering step
 	- 3 different strategies for uploading
