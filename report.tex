@@ -13,7 +13,7 @@
 
 \begin{document}
 
-\title{Exposing a Local Filesystem-Like Interface for Dropbox}
+\title{Exposing a Local Filesystem-Like Interface \\ for Remote Dropbox File Operations}
 \author{Dharit Tantiviramanond '15\\ Princeton University \\ dtantivi@princeton.edu}
 \affil{Advisor: Christopher Moretti}
 
@@ -31,40 +31,26 @@ The file hosting service market has experienced a boom since the emergence of co
 
 The inspiration for this project comes from Parrot
 
-Upon development of the project, I realized that there were many different ways to implement the uploading mechanism. Tests....
+During the development of the project, I realized that there were many different approaches that could be taken with the uploading scheme. In brief, the module could re-upload dirty files to Dropbox after a write operation, after a close operation, or at the end of the user's session. Each of these different schemes provides different levels of efficiency depending on the user's specific behavior during a session, and each has different tradeoffs between consistency and efficiency. By consistency, here I mean the consistency between the file's contents on the local filesystem as opposed to its contents on the remote filesystem. Therefore, in order to determine which scheme works best across all scenarios, I decided to test these different schemes against each other across many different examples of possible user sessions. I wrote a testing script comprising of 7 tests, each modeling a different user session. 
 
-To test the efficiency and correctness, I extended the idea to google drive and box hye riley what's up man
+To test the efficiency and correctness, I extended the idea to google drive and box 
 
 The module is written in Python and is about 330 lines long, with the testing program 320 lines long.
+
+
 \section{Module Mechanisms}
 \label{sec:mechanism}
-In this section I will describe the implementations of various mechanisms that allow the moduleto look like a 
+In this section I will describe the implementations of various mechanisms that allow the module to expose an ordinary filesystem API on the surface, but perform Dropbox API calls under the hood. In effect, the module allows the developer access to all Dropbox operations via a familiar filesystem and I/O API. The module's object-oriented nature makes it intuitive and easy to use, and its modular design is conducive towards future development and extension.
+
+The module exposes a class called \texttt{pfs_service_dropbox} (inheriting the class naming scheme from the original Parrot code) whose instance methods mirror filesystem operations. It includes the following functions: \texttt{open()}, \texttt{close()}, \texttt{read()}, \texttt{write()}, \texttt{seek()}, \texttt{remove()}, \texttt{chdir()}, \texttt{mkdir()}, \texttt{rmdir()}, \texttt{getcwd()}, and an \texttt{exit()}, function to be called at the end of a user's session. These functions' names and functionality are meant to mirror those found the \texttt{os} module in the Python standard library as closely as possible \cite{ospythonpage}. A certain number of private helper functions are also present, as well as a helper class \texttt{pfs_file_dropbox} to encapsulate all the metadata needed when dealing with a particular file.
+
+The first thing that the module implements that is not part of the Dropbox API is the concept of directories. The Dropbox API allows for downloading and uploading from arbitrary directories on the remote server by accepting the path to the desired file as an input argument to its upload and download functions. Therefore, the concept of a current working directory is not necessary to the Dropbox API--as long as developers are able to pass valid and correct paths to the Dropbox \texttt{put_file()} function, Dropbox will behave correctly. In order to implement a filesystem-like API, however, it is necessary to introduce a mechanism to mimic the functionality of directories. The mechanism is simple: keep a global string \texttt{current_working_directory} that corresponds to the path of the current working directory, with various directories in the current directory tree are delimited by the forward slash character. Changing directories then becomes a simple matter of adding on or popping off different /-delimited directory names. Then, whenever a user must obtain a file from the remote Dropbox server, the desired file name is concatenated to the end of \texttt{current_working_directory} and is passed to the \texttt{put_file()} or \texttt{get_file()} Dropbox API calls.
 
 
-In a similar scenario, imagine if $S2$ were migrated before $S1$. A black hole would occur again, at $S2$, but this time because the forwarding entry at $S2$ were removed before the forwarding entry at $S1$ were changed to point over to $S3$. Therefore, in a correct update $S2$ must be migrated before $S1$, and using the same reasoning, $S4$ before $S5$. In this way, we see that black holes can occur when an entry is to be added or removed from a node's forwarding table.
 
-Now we move our discussion on to a scenario where a problem known as forwarding loops occur. Imagine that $S8$ were migrated before $S9$. Instead of forwarding packets to $S10$, $S8$ would now forward packets to $S9$, which is where the packet originally would have come from. This is where the problem lies: after passing from $S9$ to $S8$, packets would then be forwarded \textit{back} to $S8$. This situation is called a forwarding loop, and is problematic because packets will move back and forth between $S8$ and $S9$ indefinitely, until the loop is broken or until the packet's TTL (time-to-live) field expires, causing the packet to be dropped. Again, this leads to traffic loss, which we would like to avoid. We can see from this example, then, that $S9$ must be reconfigured before $S8$ to avoid such a loop. The guarantee that forwarding loops will not occur at any point in time during a network update is another a desirable property of a sequence of update operations.
+https://docs.python.org/2/library/os.html
 
-Finally we move on to a sequence of reconfiguration operations that yields a different type of problem known as a policy violation. Imagine if $S1$ were migrated before $S4$. As previously stated, the initial path would have gone through the sequence $S1 \rightarrow S2 \rightarrow S4$, thus it would have passed through $FW1$, which satisfies the initial policy that the flow must pass through $FW1$. And the final path will ultimately contain the sequence $S4 \rightarrow S6 \rightarrow S7$. Since $FW2$ lies on top of $S6$, the final path satisfies the final policy requirement that the flow must pass through $FW2$. However, if $S1$ were migrated before $S4$, then the flow after this intermediate step of the update would follow the path $S1 \rightarrow S3 \rightarrow S4 \rightarrow S5 \rightarrow S7$. Notice that this path doesn't contain either $S2$ or $S6$, which means that the flow bypasses both firewalls altogether. This situation is known as a policy violation, in which in some intermediate state of the network during the update, the network doesn't match either of the initial policy or the final policy. This is another requirement we would like to impose on reconfiguration operation sequences for network updates--that at all times during the update, the flow must follow either the initial policy or the final policy, and never violate both at the same time. To meet this requirement, then, $S4$ would have to migrated before $S1$.
 
-\begin{wrapfigure}{l}{0.5\textwidth}
-    \vspace{-10pt}
-    \caption{\label{fig:unsolveable}}
-    \includegraphics[width=0.49\textwidth]{unsolveable.pdf}
-    \vspace{-10pt}
-\end{wrapfigure}
-
-A correct sequence of update operations would then have to be a representation of all the constraints (sentences in the form ``switch A must be migrated before switch B'') we arrived at above. Additionally, we would like such a sequence to be as fast as possible. In this context this means that all nodes that can be updated concurrently should be allowed to be updated at the same time, meaning that no constraint or ordering should exist between such nodes. In Figure~\ref{fig:example}, there is no reason why $S9$ should be updated before or after $S1$. As long as $S9$ follows its constraints in relation to $S8$, and as long as $S1$ follows its constraints with $S2$, $S3$, and $S4$, the network will not encounter any of the problems outlined above. Therefore, $S8$ and $S1$ can be updated in parallel. Our representation should be able to take this into account.
-
-Sometimes, as previously mentioned, an ordering that makes such guarantees does not exist. Consider Figure~\ref{fig:unsolveable}, and let the initial policy in this case again be that the flow must pass first through $FW1$ then $FW2$, and the final policy be that the flow must pass first through $FW2$ then $FW1$. Now there are only three nodes whose forwarding entries must be changed. Let us examine what happens when each node is migrated first.
-
-\begin{itemize}
-\item If $S1$ were migrated first, then the flow would flow through $S1 \rightarrow S2 \rightarrow S4$, thus bypassing $FW2$ altogether and therefore violating both the initial and final policies, as both of them contain $FW2$. This problem would seemingly be solved if $S2$ were migrated before this. Let us examine what happens in that scenario.
-\item If $S2$ were migrated first, a forwarding loop would occur between $S2$ and $S3$. This would lead us to believe that $S3$ should be migrated before this. Let us examine what happens in that scenario.
-\item If $S3$ were migrated first, then the flow would flow through $S1 \rightarrow S3 \rightarrow S4$, thus bypassing $FW1$ altogether and therefore violating both the initial and final policies, as both of them contain $FW1$. This would lead us to believe that $S1$ should be migrated before this.
-\end{itemize}
-
-Here we see that the reasoning to compute an order of operations is cyclical, and thus a strict ordering of operations is impossible. Optimal methods on how to handle such a situation is a topic for future research, although some ideas are given in Section~\ref{sec:furtherwork}.
 
 \section{Abstract Solution}
 \label{sec:solution}
