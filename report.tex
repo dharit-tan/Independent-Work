@@ -1,0 +1,255 @@
+\documentclass[pageno]{jpaper}
+
+\newcommand{\IWreport}{2013}
+\newtheorem{defi}{Definition}
+
+\usepackage[normalem]{ulem}
+\usepackage{authblk}
+\usepackage{wrapfig}
+\usepackage{enumerate}
+\usepackage{multirow}
+\usepackage{listings}
+\usepackage{appendix}
+
+\begin{document}
+
+\title{Exposing a Local Filesystem-Like Interface for Dropbox}
+\author{Dharit Tantiviramanond '15\\ Princeton University \\ dtantivi@princeton.edu}
+\affil{Advisor: Christopher Moretti}
+
+\date{}
+\maketitle
+
+\thispagestyle{empty}
+
+\begin{abstract}
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+The file hosting service market has experienced a boom since the emergence of companies like Dropbox, Box, Copy, Up There, and services like Google Drive, iCloud, and Amazon Cloud Drive. Thus far, the competition between companies has been such that no single company has gained market dominance. This is an obstacle for software developers who want to build applications that work across multiple file storage vendors in order to satisfy the needs of the customer no matter what vendor he or she chooses to use. This project is a first attempt towards solving this problem by providing a wrapper API around vendor-specific APIS. I started with Dropbox, arguably one of the most well-known companies in the file system market. By making the wrapper API appear as similar to a local filesystem API as possible, programmers will not have to worry about vendor-specific function names and variables, and will thus be able to more easily write code that works for multiple remove services, or provide common operations across multiple 
+
+The inspiration for this project comes from Parrot
+
+Upon development of the project, I realized that there were many different ways to implement the uploading mechanism. Tests....
+
+To test the efficiency and correctness, I extended the idea to google drive and box hye riley what's up man
+
+The module is written in Python and is about 330 lines long, with the testing program 320 lines long.
+\section{Module Mechanisms}
+\label{sec:mechanism}
+In this section I will describe the implementations of various mechanisms that allow the moduleto look like a 
+
+
+In a similar scenario, imagine if $S2$ were migrated before $S1$. A black hole would occur again, at $S2$, but this time because the forwarding entry at $S2$ were removed before the forwarding entry at $S1$ were changed to point over to $S3$. Therefore, in a correct update $S2$ must be migrated before $S1$, and using the same reasoning, $S4$ before $S5$. In this way, we see that black holes can occur when an entry is to be added or removed from a node's forwarding table.
+
+Now we move our discussion on to a scenario where a problem known as forwarding loops occur. Imagine that $S8$ were migrated before $S9$. Instead of forwarding packets to $S10$, $S8$ would now forward packets to $S9$, which is where the packet originally would have come from. This is where the problem lies: after passing from $S9$ to $S8$, packets would then be forwarded \textit{back} to $S8$. This situation is called a forwarding loop, and is problematic because packets will move back and forth between $S8$ and $S9$ indefinitely, until the loop is broken or until the packet's TTL (time-to-live) field expires, causing the packet to be dropped. Again, this leads to traffic loss, which we would like to avoid. We can see from this example, then, that $S9$ must be reconfigured before $S8$ to avoid such a loop. The guarantee that forwarding loops will not occur at any point in time during a network update is another a desirable property of a sequence of update operations.
+
+Finally we move on to a sequence of reconfiguration operations that yields a different type of problem known as a policy violation. Imagine if $S1$ were migrated before $S4$. As previously stated, the initial path would have gone through the sequence $S1 \rightarrow S2 \rightarrow S4$, thus it would have passed through $FW1$, which satisfies the initial policy that the flow must pass through $FW1$. And the final path will ultimately contain the sequence $S4 \rightarrow S6 \rightarrow S7$. Since $FW2$ lies on top of $S6$, the final path satisfies the final policy requirement that the flow must pass through $FW2$. However, if $S1$ were migrated before $S4$, then the flow after this intermediate step of the update would follow the path $S1 \rightarrow S3 \rightarrow S4 \rightarrow S5 \rightarrow S7$. Notice that this path doesn't contain either $S2$ or $S6$, which means that the flow bypasses both firewalls altogether. This situation is known as a policy violation, in which in some intermediate state of the network during the update, the network doesn't match either of the initial policy or the final policy. This is another requirement we would like to impose on reconfiguration operation sequences for network updates--that at all times during the update, the flow must follow either the initial policy or the final policy, and never violate both at the same time. To meet this requirement, then, $S4$ would have to migrated before $S1$.
+
+\begin{wrapfigure}{l}{0.5\textwidth}
+    \vspace{-10pt}
+    \caption{\label{fig:unsolveable}}
+    \includegraphics[width=0.49\textwidth]{unsolveable.pdf}
+    \vspace{-10pt}
+\end{wrapfigure}
+
+A correct sequence of update operations would then have to be a representation of all the constraints (sentences in the form ``switch A must be migrated before switch B'') we arrived at above. Additionally, we would like such a sequence to be as fast as possible. In this context this means that all nodes that can be updated concurrently should be allowed to be updated at the same time, meaning that no constraint or ordering should exist between such nodes. In Figure~\ref{fig:example}, there is no reason why $S9$ should be updated before or after $S1$. As long as $S9$ follows its constraints in relation to $S8$, and as long as $S1$ follows its constraints with $S2$, $S3$, and $S4$, the network will not encounter any of the problems outlined above. Therefore, $S8$ and $S1$ can be updated in parallel. Our representation should be able to take this into account.
+
+Sometimes, as previously mentioned, an ordering that makes such guarantees does not exist. Consider Figure~\ref{fig:unsolveable}, and let the initial policy in this case again be that the flow must pass first through $FW1$ then $FW2$, and the final policy be that the flow must pass first through $FW2$ then $FW1$. Now there are only three nodes whose forwarding entries must be changed. Let us examine what happens when each node is migrated first.
+
+\begin{itemize}
+\item If $S1$ were migrated first, then the flow would flow through $S1 \rightarrow S2 \rightarrow S4$, thus bypassing $FW2$ altogether and therefore violating both the initial and final policies, as both of them contain $FW2$. This problem would seemingly be solved if $S2$ were migrated before this. Let us examine what happens in that scenario.
+\item If $S2$ were migrated first, a forwarding loop would occur between $S2$ and $S3$. This would lead us to believe that $S3$ should be migrated before this. Let us examine what happens in that scenario.
+\item If $S3$ were migrated first, then the flow would flow through $S1 \rightarrow S3 \rightarrow S4$, thus bypassing $FW1$ altogether and therefore violating both the initial and final policies, as both of them contain $FW1$. This would lead us to believe that $S1$ should be migrated before this.
+\end{itemize}
+
+Here we see that the reasoning to compute an order of operations is cyclical, and thus a strict ordering of operations is impossible. Optimal methods on how to handle such a situation is a topic for future research, although some ideas are given in Section~\ref{sec:furtherwork}.
+
+\section{Abstract Solution}
+\label{sec:solution}
+Our goal in performing an update is not only to migrate from the existing \textit{initial path} and \textit{initial policy} already in place in the network to the final path, but also to do so in a manner that guarantees both forwarding and policy consistency within the network at all times during the update. Before we move on, it may be useful to first rigorously define both terms.
+
+\begin{defi}[Forwarding Consistency]
+Packets in the flow are never lost due to forwarding loops or black holes.
+\end{defi}
+
+Forwarding loops occur when the path between any source host and any destination host contains a loop which causes packets to stay in the loop until their TTL (time-to-live) runs out, thus preventing packets from ever reaching their destination. Black holes occur when a node forwards a packet to another node, which doesn’t have an entry in its routing table that matches the flow of the packet.
+
+\begin{defi}[Policy Consistency]
+During a network update that involves a change in policy, packets in the flow must follow either the initial policy (the policy that was in place before the update) or the final policy (the policy that the network is being migrated to).
+\end{defi}
+
+After the update, the network will ultimately follow the final policy. But during the update, the network should never violate both the initial and final policies at any given moment. Violating both policies could expose security risks and cause other problems. For example, if the initial policy were that the flow must pass through firewall $FW1$, and the final policy that the flow must pass through firewall $FW2$, if at any point during the update the flow followed an intermediate path that bypassed both, then packets could enter the network without being filtered by any firewall at all. This could allow unwanted traffic--ranging anywhere from spam to malicious attacks--to enter the network. Therefore, it is important that the network adhere to either the initial or final policy at all times during the update. \\
+
+Notice that in a migration from an initial path to a final path, there are three types of reconfiguration operations that can be applied to a node's forwarding table: an entry can be added to a node's forwarding table, removed from a node's forwarding table, or an entry already in the forwarding table can be changed to point to a different next-hop location. Guaranteeing both forwarding consistency and policy consistency during a network update can be achieved by updating nodes in an ordering that is calculated using the following three steps:\\
+
+\begin{enumerate}
+\item Compute a set of forwarding constraints according to the reconfiguration operation that must be performed on each node. A sequence that adheres to this set of constraints is guaranteed to be free from black holes. The concepts behind this calculation are examined in detail in Section~\ref{subsec:blackholes}.
+\item Compute a set of forwarding constraints that will yield a loop-free sequence. This calculation is addressed in Section~\ref{subsec:loops}.
+\item Compute a set of policy constraints that ensure the network follows either the initial or final policy at all times. This guarantees policy consistency for a sequence that follows these constraints during the update. This problem is examined in Section~\ref{subsec:policy}. \\
+\end{enumerate}
+
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \vspace{-40pt}
+    \caption{\label{fig:dependency2}}
+    \includegraphics[width=0.39\textwidth]{dependency2.pdf}
+    \vspace{-20pt}
+\end{wrapfigure}
+
+The final output of the algorithm is a dependency graph representation of the union of the three sets of constraints defined above. An example of a possible dependency graph is given in Figure~\ref{fig:dependency2}. The graph is a directed graph where each edge from node $x$ to node $y$ represents a dependency relation which denotes that node $x$ must be updated before node $y$, and $y$ can only be updated once a certain set of criteria are met. There are two types of nodes in this dependency graph representation--AND-nodes and OR-nodes--and the type determines the set of criteria that must be met before a node can be updated. An AND-node is updateable once \textit{all} of its parents (predecessors) have been updated. In Figure~\ref{fig:dependency2}, all nodes except $S4,S1$ are AND-nodes and can only be updated after all of their respective parents have been updated. An OR-node does not actually represent the state of an actual node in the network, but is an abstract construct to help represent forwarding constraints, as we will see later. As such, it is marked as updateable once only \textit{one} of its predecessors have been updated. The only OR-node in Figure~\ref{fig:dependency2} is $S4,S1$, and it can be marked as updateable once either of $S1$ or $S4$ are updated. To explain in a little more detail, $S1$ can only be updated after $S2$ is updated, and $S7$ can be updated only after $S6$ is updated. The graphs will have a set of nodes with no parents that can be updated immediately. In Figure~\ref{fig:dependency2}, this set would comprise of $S2$, $S4$, and $S6$. An updating mechanism would move through the graph starting from these nodes, updating each node as it is reached in the graph and as its updating criteria are met. 
+
+A dependency graph can not only represent dependency relationships between nodes in such a manner, but also gives information as to which nodes can be updated in parallel, thus allowing for fast and efficient network updates. In Figure~\ref{fig:dependency2}, as the two separate trees in the graph have no relations with one another, the sequence in which a node in one is updated with respect to the other has no importance. In other words, nodes $S6$ and $S7$ can be updated independently of the nodes in the other tree. This is useful because if $S6$, for example, were particularly unresponsive, its slow update speed would not hinder the updating of the nodes in the other tree. This way, nodes that are more responsive and update faster will be updated as speedily as possible, without having to ever wait on any slower node that it is not required to by any forwarding or policy constraint.
+
+\subsection{Avoiding Black Holes}
+\label{subsec:blackholes}
+To ensure forwarding consistency, we must first guarantee that black holes will not occur at any given moment during the update. To ensure this, we calculate a series of constraints based on the type of operation that will be applied to each node's routing table. There are three main operations that can be executed upon a node during a network migration, the ``add,'' ``change,'' and ``remove'' operations. How we determine which operation should be applied to each node and the properties of each operation are defined as thus:\\
+
+\begin{itemize}
+\item A forwarding entry should be \textit{added} to a node's routing table if the node is not in the initial path but is in the final path.
+\item A forwarding entry should be \textit{changed} within a node's routing table if the node is in both the initial path and the final path, but if it has a different successor in each path. In other words, a ``change'' node will change the direction of the flow.
+\item A forwarding entry should be \textit{removed} from a node's routing table if the node is in the initial path but is not in the final path.
+\item Additionally, there is one more possibility we must consider. If the node is in both the initial path and the final path, and its successor in both paths is the same, then it is neither a ``add,'' ``change,'' or ``remove'' node. As such, its routing table will not need to be affected in any way as it is already in its final configuration, and therefore such a ``no-op'' node will not need to be considered in any set of constraints. We add it as a lone node, parent-less and child-less, in our dependency graph.\\
+\end{itemize}
+
+To explain how we avoid black holes, we must revisit the definition of a black hole. A black hole occurs when a packet is forwarded to a node that does not contain a forwarding entry pertaining to the flow that the packet belongs to. During a network update, we notice that this situation arises in only two circumstances: when a packet is forwarded to an ``add'' node whose routing table hasn't been updated yet, and when a packet is forwarded to a ``remove'' node whose routing table has already been updated. In other words, black holes occur when:\\
+
+\begin{itemize}
+\item A ``change'' node is updated before its successor ``add'' nodes.
+\item A ``change'' node is updated after its successor ``remove'' nodes.\\
+\end{itemize}
+
+To avoid these situations, in our dependency graph we simply add dependency edges pointing to each ``change'' node from all its successing ``add'' nodes to denote that it must be updated after these ``add'' nodes, and edges pointing from each ``change'' node to all its successing ``remove'' nodes to denote that it must be updated before these ``remove'' nodes. For example, in Figure~\ref{fig:example}, the ``add'' nodes are $S3$ and $S6$, the ``change'' nodes are $S1$, $S4$, $S7$, $S8$, and $S9$, and the ``remove'' nodes are $S2$ and $S5$. $S14$ is a node whose initial and final paths are identical, and thus $S14$'s routing table will not be changed in any way and $S14$ will not be a vertex in the dependency graph.
+
+One detail to note is that ``add'' and ``remove'' nodes should only have edges to the ``change'' node that they directly depend upon. For example, in Figure~\ref{fig:example}, $S3$ must be updated before $S1$, but whether or not it is updated before or after $S4$ is irrelevant. As long as the constraints $S4$ has with other nodes are fulfilled, $S3$ being updated has no effect whatsoever on whether or not $S4$ can be updated, and thus in the dependency graph, it will have no edges to $S4$.
+
+The particular ``change'' node an ``add'' or ``remove'' node should have an edge to can be found using a directed search starting from each ``change'' node, within a digraph that is the union of the initial and final paths. Each search will stop once it reaches another ``change'' node. This is because each ``change'' node will have dependency edges to all succeeding ``add'' and ``remove'' nodes that it is connected to, but that are not separated from it by any other ``change'' node.
+
+\subsection{Avoiding Forwarding Loops}
+\label{subsec:loops}
+Part of forwarding consistency involves guaranteeing that no packets will be lost to forwarding loops during a network update. To guarantee this, we must define an ordering among nodes in the update that will prevent each potential loop from occurring. One technique is to construct an ordering that ensures that every potential loop is broken before it can happen. A correct and complete algorithm to achieve this has been defined in \cite{vanbever11}. To identify loops, we consider the directed graph formed from the union of both the initial and the final paths. We use a DFS cycle detection algorithm to enumerate the cycles in this digraph, and these represent the potential forwarding loops that we will need to break.
+
+\begin{wrapfigure}{r}{0.5\textwidth}
+    \vspace{-30pt}
+    \caption{\label{fig:loopBreaking}}
+    \includegraphics[width=0.49\textwidth]{loopBreaking.pdf}
+    \vspace{-20pt}
+\end{wrapfigure}
+
+To actually ``break'' the loops, for each loop we compute the set of nodes whose paths are in the initial path, and the set of nodes whose paths are in the final path (taking care to exclude ``no-op'' nodes, which should not be considered as part of any constraints). Then, at least one node in the ``initial'' set must be migrated before at least one node in the ``final'' set, and so we add to the dependency graph an OR-node representing the union of all the nodes in the ``initial'' set, then add dependency edges from each ``initial'' node to this OR-node, and from this OR-node to each ``final'' node. Since OR-nodes are considered updateable once a single one of its parents is updated, this is an accurate representation of the relationship ``at least one initial node must be updated before at least one final node.''
+
+For example, consider Figure~\ref{fig:loopBreaking}. Nodes $S2$ and $S4$ have edges in the loop that are in the initial path, $S1$ has an edge in the final path, and $S3$ has edges in both. Notice that as long as we migrate $S2$ \textit{or} $S4$ before $S1$, the loop will not occur. To represent this in our dependency graph, we add an OR-node $S2,S4$ with edges pointing from $S2$ and $S4$ to this node, and edges pointing from this node to $S1$. As a second example, in Figure~\ref{fig:example} the only loop would be between $S8$ and $S9$. To break the loop, a dependency edge must be added from $S9$ to $S8$.
+
+As a side note, this is only one correct way to perform a network update in a loop-free manner. Another way is to perform updates in a backwards sequence along the final path starting from the destination host \cite{francois05}. The reason we choose not to use this scheme is because it forces a strict ordering between nodes, which slows down the speed of the network update. This is because any nodes that could be updated in parallel would be updated in a strict sequence instead, and thus if any single node is unresponsive and takes a long time to update, it will delay the the rest of the update. Although the algorithm presented in this paper may be slower (exponential time in the worst case instead of polynomial time), it identifies all forwarding and policy constraints and therefore allows the maximum number of nodes to be updated at the same time.
+
+\subsection{Avoiding Policy Violations}
+\label{subsec:policy}
+Ensuring policy consistency in a network update can be guaranteed by defining an ordering among \textit{critical changes} which preserves policy consistency at all times during the update. A critical change is a ``change'' node whose update adds or removes a middlebox from the flow. These ``change'' nodes are the only nodes that affect the policy of the flow, because they are the only ones whose migration can possibly change the policy that the flow adheres to. In Figure~\ref{fig:example}, the critical changes would be nodes $S1$ and $S4$. $S1$ is a critical change because before the update, its path contains $S2$ which is connected to $FW1$, but after the update $S1$ forwards traffic directly to $S3$, bypassing $FW1$. Similarly, the migration of $S4$ adds $FW2$ to the flow, where it wasn't part of the flow before. In contrast, $S7$ is not a critical change, as its migration doesn't affect the positions of $FW1$ or $FW2$ in the flow, and these are the only two middleboxes in the network. In other words, $S7$ has no effect on the policy of the flow.
+
+The first step in guaranteeing policy consistency is to identify the critical changes in the migration. This can be accomplished by doing a backwards search in the digraph that is the union of the initial and final paths. The search will start from each middlebox node (a node that's connected to a middlebox) and end in a manner similar to in Section \ref{subsec:blackholes}--the search is terminated once it reaches a ``change'' node. Again, ``change'' nodes act as boundaries because the addition or removal of each middlebox node should only depend on one ``change'' node for each of the node's backwards adjacent edges. Note that this doesn't preclude the possibility of one middlebox node having many critical changes connected to it--if the node has many backwards adjacent edges, it can be added or removed from the flow in multiple ways. Also note that critical change nodes are not necessarily neighbors of the middlebox nodes, they are just the first change nodes to be reached in a search from each backwards edge adjacent to a middlebox node.
+
+The next step is to iterate through all permutations of critical changes, and for each permutation, simulate the effect of applying the change operation on each node. This yields a step-by-step simulation of the state of the network over the course of the update. If at all steps the network still matches either the initial or final policy, then the permutation is policy consistent. Note that there may be more than one policy consistent permutation.
+
+For example, refer again to Figure~\ref{fig:example}. In this example we can identify $S1$ and $S3$ as critical changes. From this we have two permutations of orderings between them: $S1 \rightarrow S3$ and $S3 \rightarrow S1$. In Section~\ref{sec:solution} we have already observed the effects of migrating $S1$ before $S3$: if we migrate $S1$, then the flow will run through $S1 \rightarrow S3 \rightarrow S4 \rightarrow S5 \rightarrow S7$. Here, a match for both the initial and the final policy will fail, as the flow passes through neither $FW1$ nor $FW2$. However, if we migrate $S3$ first, the intermediate flow will become $S1 \rightarrow S2 \rightarrow S4 \rightarrow S6 \rightarrow S7$, which matches both the initial and final policies. Then migrating $S1$ will give us the final path, which matches the final policy. Thus, this sequence of updates never fails to match a policy.
+
+Once we have found a permutation that works, representing it as a set of constraints is simply a matter of adding dependency edges between the critical change nodes, in the order defined by the permutation.
+
+Finding a consistent sequence of critical change nodes for a network update is the most computationally expensive step in the whole process. Iterating through permutations has a growth factor of n!, where n is the number of critical changes. However, note that we originally thought that we would have to simulate the effects of updating all the ``change'' nodes in a critical \textit{region}, with the region starting at the ``change'' node before the first middlebox and ending at the ``change'' node before the last middlebox. This would have been much more expensive, and by recognizing that we only need to simulate the migration of critical ``change'' nodes, as these are the only nodes that affect the flow's policy, we can significantly reduce the algorithm's computational complexity.
+
+\begin{wrapfigure}{r}{0.4\textwidth}
+    \vspace{-10pt}
+    \caption{\label{fig:dependency1}}
+    \includegraphics[width=0.39\textwidth]{dependency1.pdf}
+    \vspace{-20pt}
+\end{wrapfigure}
+
+We can further reduce runtime by pruning out permutations that go against our pre-computed forwarding constraints. If using a permutation were to cause us to have to add an edge that is opposite to an already existing edge in the dependency graph, then we can skip the simulation steps of using the permutation. However, we must be careful not to prune out permutations that go against relationships with OR-nodes in the dependency graph, because these constraints can be satisfied if only one of the constraint edges are satisfied.
+
+One further detail that may justify the use of a factorial time algorithm is the fact that many networks do not deploy very many middleboxes. Figure 1 of \cite{sherry12} gives an analysis of middlebox deployments for a range of network sizes, ranging from networks with fewer than 1k hosts to networks with more than 100k hosts. It is worth noting that networks with fewer than 1k hosts average around  large networks (10k - 100k hosts) have an average of around 100 middleboxes total. Updates in such networks will most likely involve only a fraction of these middleboxes. Furthermore, even if the number of middleboxes is high, a divide and conquer approach can be taken to perform the network updates. The area of the network to be updated can be divided into subsections, each with only a fraction of the total number of middleboxes involved in the update, and each subsection can be updated individually without any sacrifices in terms of time or memory. Such subsections must, however, be independent, as in update dependencies cannot cross subsection boundaries. An algorithm to calculate this approach has not yet been implemented, and this is a potential area for further research that could yield faster performance.
+
+Finally, the dependency graph for the migration Figure~\ref{fig:example} is given in Figure~\ref{fig:dependency1}. As you can see, we can start updating from $S2, S8,$ and $S5$ simultaneously, and continue from there depending on how fast each of those three nodes responds to the upate. Again, a key feature of this type of representation of reconfiguration sequence is that it is restrictive of updates only when necessary, and therefore as many nodes as possible may be updated in parallel at any point in time.
+
+\section{Implementation}
+\label{sec:implementation}
+The implementation developed as part of this work is a ~500-line Python module divided into three classes. The graphing module used is networkx, and as such this is the only dependency that is not packaged as part of Python. The main Migration\textunderscore Consistency class encapsulates the three computational steps in \ref{sec:solution}, and the Config class is a helpful abstraction that contains the initial and final path and policy requirements. The last class, called REList, is where all the path- and policy-matching logic resides. Because of this modularity, extending upon the syntax should not be difficult, as it only requires changing functionality within this single class. The only requirements are that the \texttt{match()} and \texttt{search()} functions are supported and behave correctly (notice that these two functions are similar to those that a normal Python regular expression object implements).
+
+To use the module, a network operator may want to define either a path requirement or a policy requirement, or both. This allows for greater flexibility: there may be instances where an operator would like to divert traffic to a new route that is consistent with the current policy in place and therefore will not have to alter the policy, and other instances where the operator would like to change the policy but does not care about the exact path that the flow takes. The network operator must specify both requirements in a file in this format: ([path requirement], [policy requirement]). The path requirement must be a comma-separated sequence of nodes that the operator would like the path to pass through. The wildcard symbol `*' can be used to specify that any path may be used, or that any path between two nodes may be used (eg. ``s1,*,s3''). The policy requirement must be a list of middlebox nodes with one of three operators between them. The operators are `\&\&' (and), `$\parallel$' (or), and `$>>$' (sequence). For example, [s1 \&\& s2] means that the policy must be that the flow passes through both $S1$ and $S2$, but the order doesn't matter. [s1 $\parallel$ s2] means that the flow must pass through either $S1$ or $S2$, or both, and the order doesn't matter. [s1 $>>$ s2] means that the flow must pass through first $S1$, then $S2$. Note that as developing a language to specify network updates was not the focus of my research, the syntax logic behind these operators is not overly complex, and thus the operator must use some thought in specifying such policies. For example, only one type of operator may be used at a time, so complex operations like chaining many different operations will not behave as expected. Extending such functionality is an area for useful further work.
+
+For simplicity in testing, I implemented a helper function to read in a file to build a networkx graph that emulates a network. An example file with the correct layout can be found in the Appendix~\ref{apndx:net}. Also, it is assumed that migrations are tested from a certain initial configuration to a final configuration, an initial configuration file must also be supplied. A network operator may use the module from the command-line in this way:\\
+\texttt{\textasciitilde .\textbackslash migration\textunderscore consistency.py network.txt init\textunderscore config.txt final\textunderscore config.txt}
+
+When run, the module will output a series of permutations of critical change nodes that it is simulating, and once it finds one that works it will print a success message. It will keep trying all possible permutations of critical changes of each final path that meets the path and policy requirements until it exhausts these paths.
+
+Table~\ref{tab:trials} gives runtimes for inputs of various network sizes. The network graphs were constructed with the given number of nodes and 1.2 as many edges to help ensure that the two end hosts would be connected. The results are in number of seconds the module took to find a solution (or exhaust all possible final paths), averaged over 100 trial runs. It is apparent that the module doesn't scale particularly well to larger graph sizes. Upon analysis, bottlenecks in the code appear at most graph operations, such as the networkx library function to enumerate cycles, networkx path enumeration generators, and recursive depth-first-search functions on the dependency graph I implemented. This is to be expected--for example, the networkx cycle-detection function has a time complexity of O((n+e)(c+1)), where n is the number of nodes, e the number of edges, and c the number of unique cycles in the graph. And this function is called for every path considered, and the number of paths can reach up to O(n!) in complete graphs. This results in a worst-case runtime of O((n+e)(c+1))(n!), after only considering cycle-detection per-path. Certain optimizations must be implemented for this module to be practically useful, but such optimizations would likely involve custom-defined functions to take the place of the networkx library calls we use. For example, to find every path that matches the final policy, I use networkx.all\textunderscore simple\textunderscore paths() to generate all the paths from the source host to the destination host, then skip those that don't match the final path and policy requirements. Since the number of paths that match the final requirements is a subset of all possible paths, this results in networkx generating many more paths than the module needs to use. To work around this, a custom path generator whose searching mechanism is limited by the final path and policy requirements might be a possible solution.
+
+Another optimization could involve the pruning system I use to prune out permutations of critical changes that break the forwarding constraints already in the dependency graph. For every critical change node in the permutation, I do a backwards and forwards depth-first-search in the dependency graph to make sure that none of its successors appear after it in the permutation, and none of its predecessors appear before it. The reason I do this instead of using the successor and predecessor functions given in networkx is because my depth-first-searches must stop once they reach an OR-node, and this functionality is impossible to specify with the networkx library functions. Therefore, a caching system similar to the one that networkx uses--which is what makes successor and predecessor lookups in networkx fast--could reduce the module's runtime. 
+
+\begin{table}
+\centering
+\begin{tabular}{ | c | c c c c c | }
+    \hline
+    \multirow{2}{*}{Number of Nodes} & \multicolumn{5}{|c|}{Number of Middleboxes} \\ 
+     &  1 & 2 & 3 & 4 & 5 \\ \hline
+    10 & 0.0016 & 0.0016 & 0.0016 & 0.0017 & 0.0017 \\ \hline
+    20 & 0.0029 & 0.0036 & 0.0042 & 0.0071 & 0.0150 \\ \hline
+    30 & 0.0049 & 0.0455 & 0.7025 & 4.7617 & 88.7751 \\ \hline
+    40 & 0.0053 & 0.1338 & 1493.4438 & Timeout & Timeout \\ \hline
+    50 & 0.0097 & 938.4018 & Timeout & Timeout & Timeout \\ \hline
+\end{tabular}
+\caption{Trial runs on given inputs}
+\label{tab:trials}
+\end{table} 
+
+\section{Related Work}
+\label{sec:relatedwork}
+There has been much recent research in the field of consistent updates. \cite{francois05}, \cite{vanbever11}, and \cite{mahajan13} are three such examples. All address the issue of consistent network updates, but only at the level of guaranteeing loop-free updates. They offer working and viable solutions, but do not address policy consistency. As previously mentioned, however, the loop-breaking algorithm presented in \cite{vanbever11} is used as part of the algorithm presented in this paper.
+
+Reitblatt et al. define a different algorithm to perform consistent network updates in \cite{reitblatt12}. Their ``two-phase'' update algorithm, although indeed consistent and correct, involves a high memory overhead and updates will take considerably longer than the algorithm presented in this report.
+
+The two-phase update is defined as thus: forwarding tables in all nodes participating in the update are ``doubled,'' meaning that the entries matching the initial path are kept in the forwarding tables, while entries for the final path are added to the forwarding table. Once this step is complete, packets entering the network are ``tagged'' at the network boundaries, marking them as belonging to the initial path. For brevity, let us denote the set of packets tagged this way as `$A$'. Then, a certain amount of time is allowed to pass to ensure that all untagged packets have left the network. At this point, all packets in the network should belong to `$A$'. After this, packets entering the network are tagged with a different tag to specify that they belong to the final path. Let us denote this set of packets as `$B$'. Now, within the network there will be a mixture of packets belonging to `$A$' and `$B$'. At this point, packets belonging to `$A$' are forwarded following the initial forwarding entries in each node, and packets in `$B$' are forwarded following the forwarding entries for the final path that were added in anticipation of the update. After this step, another amount of time is allowed to pass to let packets in `$A$' leave the network. Once operators are certain that no `$A$' packets remain, the old forwarding entries for the initial path are deleted from the nodes, packets are no longer marked as they enter the network, and the flow now follows its final configuration.
+
+While this approach is certainly correct, it does have some drawbacks. Firstly, it causes a 100\% usage increase in forwarding table size because at every node participating in the update, during the update each node must contain two forwarding entries matching one flow, where by default there should only be one. Secondly, updates executed in this manner will take a significant amount of time for two reasons:
+\begin{itemize}
+\item A certain amount of waiting is involved, first for untagged packets to drain from the network, then for `$A$' packets to drain from the network. This waiting period can vary greatly depending on the size of the network, its latency, and the traffic it is experiencing.
+\item At each step where forwarding entries in nodes are manipulated, the update process will not be able to proceed until every node participating in the update is properly configured.
+\end{itemize}
+
+This approach somewhat contrasts with the algorithm presented in this report. The two-phase update scheme is relatively computationally simple and thus will not take as much time to generate as enumerating permutations of critical changes would. But at the same time, the update process itself is significantly slower when following this scheme, whereas the algorithm in this report is optimized to allow as many concurrent updates as possible and involves no wait period. Furthermore, the algorithm in this report doesn't result in any overhead in terms of forwarding table memory.
+
+\cite{katta13} offers an optimization to the ``two-phase'' approach in \cite{reitblatt12} which takes into account the fact that such updates are usually performed at a network-wide level. This means that forwarding entries for many flows are usually updated at once, and when this is the case, there is a time-memory tradeoff that can be utilized during the update. If an operator decides to perform the two-phase update incrementally, updating only a slice of all the forwarding entries that must be updated at a time, the high memory overhead can be reduced at the expense that the update must be performed in many steps. This optimization can be useful in certain situations, but does not reduce the speed of the update, which is one of the benefits of the algorithm in this work.
+
+\section{Further Work}
+\label{sec:furtherwork}
+There are a number of areas in which the research presented in this report can be built upon and extended. First of all, the syntax for network updates can and should be extended for greater flexibility and control of the network for the network operator. Again, as developing such a syntax was not the focus of this project, much of the supported syntax was included mainly for testing purposes. Extending the language can be done through altering the REList class in migration\textunderscore consistency, as this is the class that is used to match possible final paths with path and policy requirements. Some suggested operators are the `!!' (not) and `><' (xor) operators.
+
+Secondly, the module's behavior for handling unsolveable instances could be refined. Currently, if the module fails to find a path and permutation that works, it will finish execution and exit. However, remember that in order to reduce execution time, for each final path considered, the module prunes out permutations of critical changes that go against the forwarding constraints. In the case where no optimal final path with a working critical change permutation was found, one viable solution would be to take such a final path and try simulating its critical change permutations that were initially pruned out. It is possible that one of these permutations would meet the policy requirements (while breaking the forwarding constraints, of course). If no other option were available, an operator could choose to use an update dependency graph generated this way, while noting that at some point it is possible for a forwarding loop to occur.
+
+The nodes involved in such a loop would present themselves in the form of a cycle in the dependency graph. For example, if the forwarding constraints added an edge from node $x$ to node $y$ and both were critical change nodes, any permutation where $y$ appeared before $x$ would be pruned out. Now if an operator were forced to use the pruned permutation, the permutation would add an edge from $y$ to $x$, creating a cycle in the dependency graph. Therefore, a more elegant solution in the face of a failure to find a working final path and permutation would be to identify the nodes involved in this cycle, and to notify the operator that a forwarding loop could occur since the constraint edge $x \rightarrow y$ would not be met. The operator would then know to try his best to update $x$ and $y$ as closely together in time as possible, in order to make the loop disappear as quickly as possible.
+
+Furthermore, as this module does not scale well to larger network sizes or updates involving a large number of middleboxes, the divide and conquer mechanism mentioned in a few places in this work should be implemented. Further research and experimentation in this area is required to examine the benefits and drawbacks of this approach.
+
+Finally, the module's functionality could be added to Pyretic, a growing Python library to define, control, and monitor network policies using SDN. This project was developed with the purpose of becoming packaged with Pyretic as yet another example of network programming that was not possible before SDN. Further information on SDN and Pyretic can be found in \cite{monsanto13} and \cite{pyretic}.
+
+
+\section{Conclusion}
+\label{sec:conclusion}
+Network updates, if not handled with attentiveness, can incur packet loss due to violations of forwarding constraints, as well as violations of network-wide policy migrations that can result in a variety of outcomes such as unwanted traffic leaking into a network, or even the possibility of a malicioius attack. Therefore, ensuring consistency during a network update is of utmost importance; unfortunately, calculating a sequence of update operations in order to perform a consistent network update can be a difficult and frustrating process for even the most well-trained network operators. Thus, we hope that the automated update sequence calculation algorithm presented here will be of use to network operators and form a basis upon which further advancement in the study of network updates can be made. The algorithm itself builds upon previous work concerning the the avoidance of forwarding loops \cite{vanbever11} but also offers some original contributions in the form of the enumeration of critical change permutations to guarantee policy consistency. Furthermore, we hope that the algorithm will serve as another example of the benefits of SDN and prove that network operations that were previously impossible with the traditional method of networking are now within reach.\\
+
+This paper represents my own work in accordance with University regulations.
+\bstctlcite{bstctl:etal, bstctl:nodash, bstctl:simpurl}
+\bibliographystyle{IEEEtranS}
+\bibliography{references}
+
+
+\appendix
+\appendixpage
+
+\section{Sample Network Input File}
+\label{apndx:net}
+\lstinputlisting{net.txt}
+
+
+\section{Migration Consistency Module (migration\textunderscore consistency.py)}
+\lstinputlisting[language=Python, firstline=3]{migration_consistency.py}
+
+\end{document}

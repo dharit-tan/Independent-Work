@@ -4,6 +4,7 @@ from splinter import Browser
 import time
 import string
 import random
+import ssl
 
 # dropbox_authorize_url = 'https://www.dropbox.com/1/oauth2/authorize'
 DROPBOX_DIR = os.environ['HOME'] + "/pfs_dropbox_dir"

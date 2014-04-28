@@ -11,7 +11,7 @@ import requests
 # GLOBAL VARS --------------------------------------- #
 ITERATIONS = 50
 NUM_MODES = 3
-NUM_SIZES = 4
+NUM_SIZES = 1
 
 # CLASSES --------------------------------------- #
 class test:
@@ -25,8 +25,8 @@ class test:
 			for j in range(NUM_SIZES):
 				self.stats[i].append([])
 
-	def add_runtime(self, mode, size, runtime):
-		self.stats[mode][size.num].append(runtime)
+	def add_runtime(self, size, runtime, index):
+		self.stats[index][size.index].append(runtime)
 
 	def get_size_avgs(self, mode):
 		# ret = []
@@ -39,15 +39,16 @@ class test:
 		return [np.std(self.stats[mode][i]) for i in range(NUM_SIZES)]
 
 class size:
-	def __init__(self, sizestr, size, num):
+	def __init__(self, sizestr, size, index):
 		self.sizestr = sizestr
 		self.size = size
-		self.num = num
+		self.index = index
 
 class pfs_wrapper(pfs_service_box):
-	def __init__(self, mode, desc):
+	def __init__(self, mode, desc, index):
 		pfs_service_box.__init__(self, mode)
 		self.desc = desc
+		self.index = index
 
 # TESTS --------------------------------------- #
 def test0(service, filename):
@@ -249,7 +250,7 @@ def testall(pfslist, tests, sizes):
 				for i in range(ITERATIONS):
 					try:
 						runtime = test.testfunc(pfs, filename=size.sizestr)
-						test.add_runtime(pfs.mode, size, runtime)
+						test.add_runtime(size, runtime, pfs.index)
 						print "MODE " + str(pfs.mode) + ": " + str(runtime)
 					except requests.exceptions.ConnectionError:
 						pass
@@ -286,25 +287,25 @@ if __name__ == "__main__":
 	
 	# OBJECTS --------------------------------------- #
 	tests = [ \
-		test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
-		test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
-		test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
-		test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
+		# test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
+		# test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
+		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
+		# test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
 		test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
-		test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
-		test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
-		test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
+		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
+		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
+		# test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
 		]
 	pfslist = [ \
-		pfs_wrapper(MODE_WRITE,   "0: Upload after every write"),     \
-		pfs_wrapper(MODE_CLOSE,   "1: Upload on close()"),            \
-		pfs_wrapper(MODE_EXIT,    "2: Upload only during exit"),      \
+		pfs_wrapper(MODE_WRITE,   "0: Upload after every write", 0),     \
+		pfs_wrapper(MODE_CLOSE,   "1: Upload on close()", 1),            \
+		pfs_wrapper(MODE_EXIT,    "2: Upload only during exit", 0),      \
 		]
 	sizes = [ \
-		size("1kb",    1024,       0),    \
-		size("10kb",   10240,      1),    \
-		size("100kb",  102400,     2),    \
-		size("1mb",    1048576,    3),    \
+		# size("1kb",    1024,       0),    \
+		# size("10kb",   10240,      1),    \
+		# size("100kb",  102400,     0),    \
+		size("1mb",    1048576,    0),    \
 		]
 
 

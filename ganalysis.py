@@ -245,13 +245,13 @@ if __name__ == "__main__":
 	
 	# OBJECTS --------------------------------------- #
 	tests = [ \
-		test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
-		test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
-		test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
-		test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
-		test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
-		test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
-		test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
+		# test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
+		# test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
+		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
+		# test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
+		# test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
+		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
+		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
 		test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
 		]
 	pfslist = [ \
