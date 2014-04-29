@@ -118,11 +118,6 @@ class pfs_service_box:
 			raise IOError("Not an open file: " + path)
 
 		self.fd_table[path].fp.close()
-
-		# old_current = os.getcwd()
-		# os.chdir(BOX_DIR)
-		# os.chdir(old_current)
-
 		del self.fd_table[path]
 
 	# upload on close()

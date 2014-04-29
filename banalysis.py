@@ -9,9 +9,9 @@ import os
 import requests
 
 # GLOBAL VARS --------------------------------------- #
-ITERATIONS = 50
+ITERATIONS = 30
 NUM_MODES = 3
-NUM_SIZES = 3
+NUM_SIZES = 4
 
 # CLASSES --------------------------------------- #
 class test:
@@ -55,8 +55,8 @@ def test0(service, filename):
 	service.open(filename,"r+")
 	then = time.clock()
 	service.write(filename,"HELLO THERE SIR")
-	# service.close(filename)
-	# service.exit()
+	service.close(filename)
+	service.exit()
 	now = time.clock()
 	return now - then
 
@@ -287,24 +287,24 @@ if __name__ == "__main__":
 	
 	# OBJECTS --------------------------------------- #
 	tests = [ \
-		# test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
+		test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
 		# test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
 		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
 		# test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
 		# test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
 		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
 		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
-		test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
+		# test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
 		]
 	pfslist = [ \
 		pfs_wrapper(MODE_WRITE,   "0: Upload after every write", 0),     \
-		# pfs_wrapper(MODE_CLOSE,   "1: Upload on close()", 1),            \
-		# pfs_wrapper(MODE_EXIT,    "2: Upload only during exit", 2),      \
+		pfs_wrapper(MODE_CLOSE,   "1: Upload on close()", 1),            \
+		pfs_wrapper(MODE_EXIT,    "2: Upload only during exit", 2),      \
 		]
 	sizes = [ \
-		# size("1kb",    1024,       0),    \
-		# size("10kb",   10240,      1),    \
-		# size("100kb",  102400,     0),    \
+		size("1kb",    1024,       0),    \
+		size("10kb",   10240,      1),    \
+		size("100kb",  102400,     0),    \
 		size("1mb",    1048576,    1),    \
 		]
 
