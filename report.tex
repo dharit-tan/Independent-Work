@@ -1,15 +1,24 @@
 \documentclass[pageno]{jpaper}
 
-\newcommand{\IWreport}{2013}
-\newtheorem{defi}{Definition}
+\newcommand{\IWreport}{2014}
 
 \usepackage[normalem]{ulem}
 \usepackage{authblk}
 \usepackage{wrapfig}
-\usepackage{enumerate}
+\usepackage{enumitem}
 \usepackage{multirow}
 \usepackage{listings}
 \usepackage{appendix}
+% \usepackage{subfigure}
+% \usepackage{subcaption}
+\usepackage{subfig}
+\usepackage{placeins}
+\usepackage{caption}
+% \usepackage[demo]{graphicx}
+\makeatletter\def\CT{\def\@captype{figure}}\makeatother
+
+
+\newcommand{\cwd}{\tt{current\_working\_directory}}
 
 \begin{document}
 
@@ -20,222 +29,351 @@
 \date{}
 \maketitle
 
+\doublespace
+
 \thispagestyle{empty}
 
 \begin{abstract}
+Remote file storage services are recognized as one of the most cutting-edge technologies of modern day, with Dropbox quickly becoming one of the most well-known and respected tech companies since its launch in 2008. However, many other file storage services exist, and no one vendor has been able to secure a monopoly on this new business. In this paper, I present a first attempt at providing an encapsulation of the Dropbox, Google Drive, and Box APIs under a standard filesystem interface. I then go on to discuss the differences between three upload heuristics that can be implemented, each better suited to a different type of user behavior. I then provide some empirical data related the efficiency for each strategy, and conclude with a discussion of what implications the data holds in store for each design.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
-The file hosting service market has experienced a boom since the emergence of companies like Dropbox, Box, Copy, Up There, and services like Google Drive, iCloud, and Amazon Cloud Drive. Thus far, the competition between companies has been such that no single company has gained market dominance. This is an obstacle for software developers who want to build applications that work across multiple file storage vendors in order to satisfy the needs of the customer no matter what vendor he or she chooses to use. This project is a first attempt towards solving this problem by providing a wrapper API around vendor-specific APIS. I started with Dropbox, arguably one of the most well-known companies in the file system market. By making the wrapper API appear as similar to a local filesystem API as possible, programmers will not have to worry about vendor-specific function names and variables, and will thus be able to more easily write code that works for multiple remove services, or provide common operations across multiple 
+The file hosting service market has experienced a boom since the emergence of companies like Dropbox, Box, Copy, Up There, and services like Google Drive, iCloud, and Amazon Cloud Drive. As most of these vendors implement their own Thus far, there has been no successful effort to standardize interaction with each of these vendors, and . This is an obstacle for software developers who want to build applications that work across multiple file storage vendors in order to satisfy the needs of the customer no matter what vendor he or she chooses to use. This project is a first attempt towards solving this problem by implementing a standard and familiar wrapper API around vendor-specific APIS. I started with Dropbox. By making the wrapper API appear as similar to a local filesystem API as possible, programmers will not have to worry about vendor-specific function names and variables, and will thus be able to easily write code that works for multiple services.
 
-The inspiration for this project comes from Parrot
+The inspiration for this project comes from Parrot, which is project that seeks to act as an ``interposition agent'' between various distributed I/O services and distributed computing services. In brief, Parrot provides a common I/O interface across multiple filesystems, including FTP, HTTP, Chirp, and others. The power of Parrot can be illustrated as thus: instead of having to remember the various arguments, behavior, and functionality of many different commands for many different remote filesystem protocols like $\tt{ftp \ get}$ and HTTP GET requests, users need only $\tt{cd}$ into an imaginary directory corresponding to the desired protocol (eg. $\tt{/ftp/}$ for FTP) and perform the usual filesystem operations like $\tt{read()}$ and $\tt{write()}$ on files located on a remote FTP server from there. To the user, it looks like he is simply operating on files located in a local directory, while Parrot performs all the necessary FTP commands using a strategy known as the Debugger Trap \cite{thain03}.
 
-During the development of the project, I realized that there were many different approaches that could be taken with the uploading scheme. In brief, the module could re-upload dirty files to Dropbox after a write operation, after a close operation, or at the end of the user's session. Each of these different schemes provides different levels of efficiency depending on the user's specific behavior during a session, and each has different tradeoffs between consistency and efficiency. By consistency, here I mean the consistency between the file's contents on the local filesystem as opposed to its contents on the remote filesystem. Therefore, in order to determine which scheme works best across all scenarios, I decided to test these different schemes against each other across many different examples of possible user sessions. I wrote a testing script comprising of 7 tests, each modeling a different user session. 
+The programs implemented as part of this project are three 330-line Python modules that seek to mimic similar functionality as Parrot for various file storage services, namely Dropbox, Box, and Google Drive. The idea is to provide interposition layers between the vendor APIs and any applications that would like to connect to them. By providing a familiar API, developers will be able to perform operations on remote files hosted with these services without having to learn the APIs at all.
 
-To test the efficiency and correctness, I extended the idea to google drive and box 
+The Dropbox module is fully functional (it exposes functions that correspond to every function expected to be on a basic filesystem API), while the other two modules are prototypes with limited functionality. The main purpose of these two modules is to test the efficiency and correctness of the implementation across vendors, and to provide data relating to the efficiency of the three different upload heuristics for comparison so that more meaningful vendor-agnostic conclusions can be drawn about the data. The two modules' functionality is limited to uploading files that already exist on the local filesystem, but this was enough to generate the data necessary for this research. For the most part, reconfiguring the baseline code for a new vendor was not very difficult, as most of the functionality that each service was similar to a certain extent. All three vendors initialized with an authorization flow that required the same type of automatic browser activity using the $\tt{splinter}$ package, then created a $\tt{client}$ object from which API calls could be made. All had upload and download functions, and the Dropbox and Box APIs operated in almost the exact same way. The Google Drive API was slightly different, with a very object-oriented API and many parameters. This was the main difficulty that obstructed the full-fledged development of the Google Drive modules--the convoluted API was not conducive towards how I wanted the module to function. For the Box module, the development of the authorization flow ended up taking up the most time. Box has created an app that has the capacity to generate a large number of dummy authentication tokens to be used for testing, and figuring out how this slightly different model of operation worked was a challenge.
 
-The module is written in Python and is about 330 lines long, with the testing program 320 lines long.
+To perform operations on files hosted on remote servers, the module must connect to the remote file storage service and transfer files between the local machine and the remote server. This obviously includes uploading modified files back to the servers at some point during the user's session. During the development of the project, I realized that there were many different approaches that could be taken with the uploading scheme--the module could re-upload files to the remote servers after a write operation, after a close operation, or at the end of the user's session. Each of these different schemes provides different levels of efficiency depending on the user's specific behavior during a session, and each has different trade-offs between consistency and efficiency. By consistency, here I mean the consistency between the file's contents on the local filesystem as opposed to its contents on the remote filesystem. Therefore, in order to determine the optimal scheme across all scenarios I decided to test these different schemes against each other across many different examples of possible user sessions. Analysis of the data I gathered is presented in Section~\ref{sec:analysis}. 
 
+\section{Functionality}
+\label{sec:functionality}
+In this section I will describe the implementations of various mechanisms that allow the module to expose an ordinary filesystem API on the surface, but perform file hosting service API calls under the hood. For this section, I will use Dropbox as the primary example vendor. In effect, the module allows the developer access to all Dropbox operations via a familiar filesystem and I/O API that looks and feels like an ordinary filesystem API. The module's object-oriented nature makes it intuitive and easy to use, and its modular design is conducive towards future development and extension.
 
-\section{Module Mechanisms}
-\label{sec:mechanism}
-In this section I will describe the implementations of various mechanisms that allow the module to expose an ordinary filesystem API on the surface, but perform Dropbox API calls under the hood. In effect, the module allows the developer access to all Dropbox operations via a familiar filesystem and I/O API. The module's object-oriented nature makes it intuitive and easy to use, and its modular design is conducive towards future development and extension.
+The module exposes a class called $\tt{pfs\_service\_dropbox}$ (inheriting the class naming scheme from the original Parrot code) which contains instance methods that function as filesystem operations. It includes the following functions: $\tt{open()}$, $\tt{close()}$, $\tt{read()}$, $\tt{write()}$, $\tt{seek()}$, $\tt{remove()}$, $\tt{chdir()}$, $\tt{mkdir()}$, $\tt{rmdir()}$, $\tt{getcwd()}$, and an $\tt{exit()}$ function to be called at the end of a user's session. These functions' names and functionality are meant to mirror those found the $\tt{os}$ module in the Python standard library \cite{os} as closely as possible. A certain number of private helper functions are also present, as well as a helper class $\tt{pfs\_file\_dropbox}$ to encapsulate all metadata needed when dealing with a particular file. The $\tt{pfs\_file\_dropbox}$ includes members for the file's name, flags, path on the remote server, as well as its file stream object.
 
-The module exposes a class called \texttt{pfs_service_dropbox} (inheriting the class naming scheme from the original Parrot code) whose instance methods mirror filesystem operations. It includes the following functions: \texttt{open()}, \texttt{close()}, \texttt{read()}, \texttt{write()}, \texttt{seek()}, \texttt{remove()}, \texttt{chdir()}, \texttt{mkdir()}, \texttt{rmdir()}, \texttt{getcwd()}, and an \texttt{exit()}, function to be called at the end of a user's session. These functions' names and functionality are meant to mirror those found the \texttt{os} module in the Python standard library as closely as possible \cite{ospythonpage}. A certain number of private helper functions are also present, as well as a helper class \texttt{pfs_file_dropbox} to encapsulate all the metadata needed when dealing with a particular file.
+\subsection{Directories}
+The first thing that the module implements that is not part of the Dropbox API is the concept of a current working directory. The Dropbox API allows for downloading and uploading from arbitrary directories on the remote server by accepting the remote path to the desired file as an input argument to its $\tt{put\_file()}$ upload and $\tt{get\_file()}$ download functions. Therefore, the notion of a current working directory is not necessary to the Dropbox API--as long as developers are able to pass valid and correct paths to $\tt{put\_file()}$, Dropbox will successfully upload the file to the correct location on the remote server. In order to implement a filesystem-like API, however, it is necessary to introduce a mechanism that mimics the functionality of a current working directory. The mechanism is simple: keep a global string $\tt{current\_working\_directory}$ that corresponds to the path of the current working directory. Various directories in the current directory path are delimited by the forward slash character. Changing directories via $\tt{chdir()}$ then becomes a simple matter of concatenating or popping off different /-delimited directory names onto $\cwd$, and $\tt{getcwd()}$ just returns the current value of $\cwd$. Then, to perform operations on a file on a remote Dropbox server, the desired file name is concatenated to the end of $\cwd$ and is passed to the $\tt{put\_file()}$ or $\tt{get\_file()}$ Dropbox API calls, since these functions accept only the full path to the desired file.
 
-The first thing that the module implements that is not part of the Dropbox API is the concept of directories. The Dropbox API allows for downloading and uploading from arbitrary directories on the remote server by accepting the path to the desired file as an input argument to its \texttt{put_file()} upload and \texttt{get_file()} download functions. Therefore, the concept of a current working directory is not necessary to the Dropbox API--as long as developers are able to pass valid and correct paths to \texttt{put_file()}, Dropbox will successfully upload the file to the correct location on the remote server. In order to implement a filesystem-like API, however, it is necessary to introduce a mechanism to mimic the functionality of directories. The mechanism is simple: keep a global string \texttt{current_working_directory} that corresponds to the path of the current working directory, with various directories in the current directory tree are delimited by the forward slash character. Changing directories then becomes a simple matter of adding on or popping off different /-delimited directory names. Then, whenever a user must obtain a file from the remote Dropbox server, the desired file name is concatenated to the end of \texttt{current_working_directory} and is passed to the \texttt{put_file()} or \texttt{get_file()} Dropbox API calls.
+Dropbox does support operations for managing remote directories, however. For most of the module's directory-related functions, determining their functionality is a simple matter of mapping a filesystem function to a Dropbox API call. Specifically, $\tt{mkdir()}$ maps to $\tt{file\_create\_folder()}$, while $\tt{rmdir()}$ maps to $\tt{file\_delete()}$, since directories are simply special types of files. Due to this detail, $\tt{remove()}$ also consists of a single call to $\tt{file\_delete()}$.
 
+\subsection{I/O}
+Since the Dropbox $\tt{get\_file()}$ function returns a file stream, I had to devise a mechanism by which files could be downloaded, edited, and uploaded back to the server at any point in between edits. I decided to use a simple scheme: download files to a local directory $\tt{dropbox\_dir}$ in the user's root directory, and perform operations on the files from there (the user can easily specify which local directory to use). To keep track of the files, I added a local file descriptor table, which is simply a Python list of $\tt{pfs\_file\_dropbox}$ instances corresponding to each open file. I also had to decide on a naming scheme for the local names of the downloaded files. The obvious first choice would be to not change the file names from their original names on Dropbox at all. However, this leads to naming collisions, since Dropbox does not implement the concept of directories. Two files are allowed to have the same name on the Dropbox server if they are located in different directories, but upon downloading, one will get overwritten since they both have the same name and are both being downloaded to the same local directory. To work around this, I could have named the downloaded files according to their paths and replaced the `/' character with an acceptable substitute, or I could rename the downloaded files with random characters and keep extra metadata in the $\tt{pfs\_file\_dropbox}$ class to keep track of both these random local names and remote paths of each open file. I decided to implement the random naming scheme, as I found it simpler and more elegant.
 
+I also had to decide on when to actually perform the download and upload operations. Downloading is performed with a call to Dropbox's $\tt{get\_file()}$ command that is inside the module's $\tt{open()}$ function. This returns a file stream that is written to a randomly-named local file in $\tt{dropbox\_dir}$. Then, the file is re-opened with the desired flags and the file pointer is encapsulated in a $\tt{pfs\_file\_dropbox}$ instance, which includes metadata about the file's path on the remote server, the file's name, the file's local random name, and the flags with which it was intended to be opened. This $\tt{pfs\_file\_dropbox}$ object is placed in the file descriptor table. Opening a file with the same path as a previously opened file will cause the old file to be closed and replaced with the new file. One issue that I wanted to avoid was cluttering the local $\tt{dropbox\_dir}$ directory, so on a call to $\tt{exit()}$, the program clears out the contents of that directory.
 
-https://docs.python.org/2/library/os.html
+With uploads, however, the situation is far more complicated. As previously mentioned, uploading can be performed after writing to a file, after closing a file, or at the very end of a user session. Depending on which strategy is chosen, then, the call to the Dropbox function $\tt{put\_file()}$ will be inside of $\tt{write()}$, $\tt{close()}$, or $\tt{exit()}$. A more in-depth discussion of the trade-offs between each strategy is in section~\ref{sec:upload}.
 
+Apart from downloading and uploading, the rest of the I/O functionality does not necessitate any interaction with Dropbox. $\tt{read()}$ simply reads from the local file, and $\tt{seek()}$ seeks to the desired location in the local copy of the file as expected.
 
+\subsection{Authentication}
+One obstacle that I encountered early on during development was the Dropbox authentication system. Dropbox authentication is performed using the OAuth 2.0 protocol, which was designed to simplify and streamline the authentication process for web apps and mobile apps. Unfortunately, this became a problem for this project as the module is meant to be a Python library, and not a web or mobile app. For web or mobile apps the authentication process looks something like this:
+\begin{itemize}
+	\item The user is redirected to a Dropbox authentication page where he must enter his credentials.
+	\item The user is presented with terms of agreement which he must accept in order to authorize the app to access the user's files hosted on Dropbox.
+	\item After accepting, the user is redirected back to the app. An access token is passed to the app, which the app must include as an HTTP header whenever it makes a request to the Dropbox API.
+\end{itemize}
+For a program running on the command-line, Dropbox recommends presenting the user with a url to the authentication page which the user must copy-paste into a browser. After authentication, the user must copy-paste the access token into the terminal so that the program can use it to make Dropbox API calls. This process is slow and inelegant, and a major hindrance for automated testing. I was able to use the Python Splinter test framework to make a browser automatically visit the authentication page, enter credentials, and click the ``accept'' button in order to automate the authentication process. I made use of the element-searching functionality of Splinter to find the correct text fields to simulate filling in as well as the right buttons elements to simulate clicking. I was, however, unable to avoid opening up a browser all together, although I believe that this could be possible using custom HTTP requests and some clever data scraping from the responses.
 
-\section{Abstract Solution}
-\label{sec:solution}
-Our goal in performing an update is not only to migrate from the existing \textit{initial path} and \textit{initial policy} already in place in the network to the final path, but also to do so in a manner that guarantees both forwarding and policy consistency within the network at all times during the update. Before we move on, it may be useful to first rigorously define both terms.
+\section{Upload Heuristics}
+\label{sec:upload}
+As previously mentioned, during development I realized that there were many possible ways to implement the uploading mechanism that uploads edited files back to remote file storage servers, and that each would have different benefits and pitfalls depending on the user's usage behavior and scenario. In this section I will examine each strategy in detail, as well as discuss the way in which I measured the three against each other using a testing script.
 
-\begin{defi}[Forwarding Consistency]
-Packets in the flow are never lost due to forwarding loops or black holes.
-\end{defi}
+\subsection{Efficiency vs. Consistency}
+In a system where two filesystems are meant to be kept in sync with each other, the two most important qualities to consider are efficiency and consistency. The meaning of efficiency is straightforward: lagging applications and slow response times are exasperating and inhibit productivity, and thus we would like to strive for the most efficient system possible. Consistency refers to minimizing the difference in state between the two filesystems, in this case the local filesystem and the remote file storage server. The concept can be made clear through an example: if a user edits a file that is in his Dropbox folder on his local machine (that is meant to be kept in sync with a copy of the same file on his remote Dropbox account), after editing he should expect to be able to view his changes on his remote account immediately. Of course, this is impossible since uploading the changes to Dropbox requires a certain amount of time.
 
-Forwarding loops occur when the path between any source host and any destination host contains a loop which causes packets to stay in the loop until their TTL (time-to-live) runs out, thus preventing packets from ever reaching their destination. Black holes occur when a node forwards a packet to another node, which doesn’t have an entry in its routing table that matches the flow of the packet.
+The trade-off between efficiency and consistency then becomes apparent: an upload strategy that ensures maximum efficiency would perform uploads rarely, and in the background, in order to minimize the overhead associated with every upload operation. And since many edits to files often overwrite or undo previous changes, it is more efficient to only transfer the most recent edits in a single upload, rather than transfer all edits every step of the way only to have them overwritten later. On the other hand, a strategy that ensures maximum consistency would perform uploads as often as possible, as this minimizes the time during which there are conflicts between two copies of the same file on the two different filesystems.
 
-\begin{defi}[Policy Consistency]
-During a network update that involves a change in policy, packets in the flow must follow either the initial policy (the policy that was in place before the update) or the final policy (the policy that the network is being migrated to).
-\end{defi}
+In this project, I implemented three different upload strategies that are numbered as modes 0 through 2 as below. For simplicity, I will refer to the three strategies as these modes throughout the rest of this report. I also offer some remarks on the expected levels of efficiency and consistency for each mode:
+\begin{itemize}
+	\item Mode 0: upload on write. This strategy minimizes the time spent in an inconsistent state between the local and remote filesystems since the upload is performed immediately after the file is edited. The only time there are any inconsistencies is during the upload operation itself. However, this strategy is expected to become inefficient if many writes are performed in succession.
+	\item Mode 1: upload on close. This strategy represents a middle ground between efficiency and consistency. During the time that a file is kept open, after any edits the file will be inconsistent with its copy on the remote server. Once the file is closed, however, consistency will be restored. And since uploads are performed after files are closed, no efficiency is lost by uploading edits that will be overwritten later.
+	\item Mode 2: upload on exit. This strategy is the most efficient of the three, but also opens the door for the most inconsistencies. During the entire session, any edits that the user makes to local files will not be seen on the remote server until after the user intentionally ends his session. If the user tries to access the files on the file storage vendor's web access point at any point during the session, problems can occur as none of his changes have been uploaded yet. However, only a single upload operation is needed for every file that the user opens during the session.
+\end{itemize}
 
-After the update, the network will ultimately follow the final policy. But during the update, the network should never violate both the initial and final policies at any given moment. Violating both policies could expose security risks and cause other problems. For example, if the initial policy were that the flow must pass through firewall $FW1$, and the final policy that the flow must pass through firewall $FW2$, if at any point during the update the flow followed an intermediate path that bypassed both, then packets could enter the network without being filtered by any firewall at all. This could allow unwanted traffic--ranging anywhere from spam to malicious attacks--to enter the network. Therefore, it is important that the network adhere to either the initial or final policy at all times during the update. \\
+\subsection{Data Collection}
+I first enabled data collection by making the $\tt{pfs\_service\_dropbox}$ class accept an int in the range 0-2 corresponding to the desired mode as an input argument. I implemented the three different schemes by having each function branch off to the correct functionality based on which mode number was passed to it. For example, $\tt{close()}$ would not upload the file on mode 0 or 2, but would upload the file on mode 1. However, on mode 2 it would store the local file name in a list to be uploaded later during $\tt{exit()}$.
 
-Notice that in a migration from an initial path to a final path, there are three types of reconfiguration operations that can be applied to a node's forwarding table: an entry can be added to a node's forwarding table, removed from a node's forwarding table, or an entry already in the forwarding table can be changed to point to a different next-hop location. Guaranteeing both forwarding consistency and policy consistency during a network update can be achieved by updating nodes in an ordering that is calculated using the following three steps:\\
+I coded a 320-line testing script comprising 8 tests, each modeling a different user session. I tried to capture the possible extremes of the sessions in relation to the upload schemes. For example, I included a test with many small writes, which would cause a consistency-focused strategy to quickly become inefficient. Following is a short description of the 8 tests:
+\begin{enumerate}[start=0]
+\item Simple test that just opens a file, performs a write, then closes the file and exits.
+\item 6 small write operations of size ranging between 12 and 33 characters each in a single session.
+\item 20 single-character write operations in a single session.
+\item Open a file in r+ mode and perform a read and write, then open the same file in w+ mode and perform a single large write.
+\item 10 alternating write and close operations.
+\item Three files are opened concurrently and a single large write is performed on each. The files are closed at the same time at the end of the session.
+\item Three files are opened concurrently and a single large write is performed on each. The files are written to and immediately closed afterwards one by one.
+\item Three files opened concurrently, with a series of read, write, and seek operations performed in a pseudo-random fashion.
+\end{enumerate}
+I tried to isolate the upload speeds as much as possible. I did not test download speeds when they were not necessary to the test, and I did not include the authentication process in the timings either. Timing started after the files were downloaded (via the $\tt{open()}$ function) and ended after $\tt{exit()}$ was called. I tested across three dimensions: mode, file size, and test case. For smaller sizes, I ran about 50 iterations per test, and for larger sizes I tried to keep the number of iterations above 20. The script generates bar-graph representations of the means and standard deviations of the data automatically using the matplotlib and numpy Python packages.
 
-\begin{enumerate}
-\item Compute a set of forwarding constraints according to the reconfiguration operation that must be performed on each node. A sequence that adheres to this set of constraints is guaranteed to be free from black holes. The concepts behind this calculation are examined in detail in Section~\ref{subsec:blackholes}.
-\item Compute a set of forwarding constraints that will yield a loop-free sequence. This calculation is addressed in Section~\ref{subsec:loops}.
-\item Compute a set of policy constraints that ensure the network follows either the initial or final policy at all times. This guarantees policy consistency for a sequence that follows these constraints during the update. This problem is examined in Section~\ref{subsec:policy}. \\
+\section{Analaysis}
+\label{sec:analysis}
+In order to fully examine the test output, I will examine the tests one by one. I will focus on the dropbox test results, and use the Google Drive and Box results as comparisons in order to make remarks about how reliable the test data is as well as any implications as to the performance of each vendor. Please note that all timings in the figures are in seconds.
+\begin{enumerate}[label=Test \arabic*:,start=0]
+\item See figures~\ref{dtest0}, \ref{gtest0}, and \ref{btest0}. As this is just a baseline test with one call to $\tt{write()}$, $\tt{close()}$, and $\tt{exit()}$ each, the timings across every vendor and every mode should be comparable. Indeed, the data confirms this notion.
+
+\FloatBarrier
+\begin{center}
+\CT
+\subfloat[\label{dtest0}]{\includegraphics[height=8cm]{dtest0.pdf}}\quad
+\subfloat[\label{gtest0}]{\includegraphics[height=8cm]{gtest0.pdf}}\quad
+\subfloat[\label{btest0}]{\includegraphics[height=8cm]{btest0.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest1}, \ref{gtest1}, and \ref{btest1}. The data indicates that mode 1 is the most costly here, as is expected since this is a test with many small write operations before a single $\tt{close()}$ or $\tt{exit()}$ is called. And as expected, modes 1 and 2 use almost exactly the same amount of time. Interestingly, Dropbox's upload speeds far outstrip those of other vendors at less than 0.03 seconds for files up to 100 kb large, with Google drive taking about 0.1 seconds and Box taking more than 0.15 seconds. This implies that Dropbox has managed to decrease its per-upload overhead far more successfully than at least these two competitors. For larger file sizes, the difference is less noticeable. This may be because for larger files, most vendors may break the file down into smaller packets, send each packet individually across the network, and reconstruct the original file on the receiving end. Another interesting point is that for Box and Google Drive, at file sizes of 1kb through 100kb, the upload speeds appear to be somewhat constant. This may be because these vendors upload schemes necessitate a minimum upload time. One such scheme may be to divide every file into equal-sized chunks and upload each chunk individually, regardless of file size.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest1}]{\includegraphics[height=9cm]{dtest1.pdf}}\quad
+\subfloat[\label{gtest1}]{\includegraphics[height=9cm]{gtest1.pdf}}\quad
+\subfloat[\label{btest1}]{\includegraphics[height=9cm]{btest1.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest2}, \ref{gtest2}, and \ref{btest2}. I included this test to observe the growth of the upload times as the number of write operations increased. The results are somewhat surprising. For Box and Google Drive on mode 0, as the number of write operations increased by a factor of about 3.3 one may expect the upload speeds to increase by a similar factor as well, since the size difference of the changes made did not increase by any relatively large factor. However, the upload times increased by a slightly smaller factor than 3.3 in both cases, which suggests that these vendors' uploading schemes may be a little smarter than simply dividing into equal-sized chunks regardless of file size. Perhaps these vendors reduce the number of chunks as the file size increases; this may make sense up to a certain file size upper bound. Also noteworthy is the fact that the upload speeds for the other two modes actually decreased. The only factor that decreased between tests 1 and 2 is the total size of the changes made, and since on modes 1 and 2 only one upload operation was performed, the amount of information needed to update the remote copy of the file would have decreased.
+
+For Dropbox, however, the mean upload times increased to about 0.2 seconds for files of sizes 1-100kb, and the upper bound for the standard deviations increased to about 0.4 seconds for the same file sizes. One possible explanation may be that since Dropbox tracks changes (in a somewhat source-control-like fashion; the $\tt{delta()}$ function of the Dropbox API provides developers with instructions on how update a file to match the file's state on the remote server), every change uploaded to the server may incur the same amount of overhead cost. With the large spread of figure~\ref{dtest2}'s standard deviation, however, it is hard to generalize. Finally, for all file sizes, Dropbox still remains the fastest in terms of upload speeds.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest2}]{\includegraphics[height=9cm]{dtest2.pdf}}\quad
+\subfloat[\label{gtest2}]{\includegraphics[height=9cm]{gtest2.pdf}}\quad
+\subfloat[\label{btest2}]{\includegraphics[height=9cm]{btest2.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest3}, \ref{gtest3}, and \ref{btest3}. As expected, the upload times for every mode remains at a relatively constant level, as the same number of $\tt{write()}$, $\tt{close()}$, and $\tt{exit()}$ operations are performed. Somewhat noteworthy is the fact that 1mb files, mode 2 seems to be consistently very slightly faster than the other two modes across all three vendors. Also, this is the first test that Dropbox fails miserably when compared to the other vendors. For 1mb files, Dropbox takes about 14 seconds, while the upload times for both Box and Google Drive are upper bounded by 2 seconds. From observing the data, Dropbox's upload speeds increase by about a factor of 10, linear to the increase in file size.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest3}]{\includegraphics[height=9cm]{dtest3.pdf}}\quad
+\subfloat[\label{gtest3}]{\includegraphics[height=9cm]{gtest3.pdf}}\quad
+\subfloat[\label{btest3}]{\includegraphics[height=9cm]{btest3.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest4}, \ref{gtest4}, and \ref{btest4}. The first noticeable point in this test is that for Box and Google Drive, the upload speeds behave mostly as expected. Modes 0 and 1 take about a constant amount of time, while mode 2 is faster by a factor of 7-10. This makes sense, as the number of $\tt{write()}$ and $\tt{close()}$ operations in this test are 10 times as much as the number of calls to $\tt{exit()}$.
+
+Also noteworthy is that Dropbox's upload times are again much worse than its competitors. For 1mb files, modes 1 and 2 reach speeds almost as slow as 200 seconds, and mode 1 takes over 150 seconds. The size of the changes made to the files is not out of the ordinary, and neither is the number of changes made. Follow-up tests for Dropbox confirmed the results.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest4}]{\includegraphics[height=9cm]{dtest4.pdf}}\quad
+\subfloat[\label{gtest4}]{\includegraphics[height=9cm]{gtest4.pdf}}\quad
+\subfloat[\label{btest4}]{\includegraphics[height=9cm]{btest4.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest5}, \ref{gtest5}, and \ref{btest5}. Upload speed results behave much as expected. Since the number of calls to each function is the same, the upload speeds are consistent across all three modes. Dropbox takes the least time, Box the most.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest5}]{\includegraphics[height=9cm]{dtest5.pdf}}\quad
+\subfloat[\label{gtest5}]{\includegraphics[height=9cm]{gtest5.pdf}}\quad
+\subfloat[\label{btest5}]{\includegraphics[height=9cm]{btest5.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest6}, \ref{gtest6}, and \ref{btest6}. This test is similar to the previous test, except the ordering of the operations is different. I was interested to see if there would be any differences in the upload speeds as a result of the order of the files being written to on the remote server, but there were none. Somewhat noteworthy, however, is that the uploads took about 1 second longer for both Box and Google Drive at 1mb files.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest6}]{\includegraphics[height=9cm]{dtest6.pdf}}\quad
+\subfloat[\label{gtest6}]{\includegraphics[height=9cm]{gtest6.pdf}}\quad
+\subfloat[\label{btest6}]{\includegraphics[height=9cm]{btest6.pdf}}
+\captionof{figure}{}
+\end{center}
+
+\item See figures~\ref{dtest7}, \ref{gtest7}, and \ref{btest7}. Here Dropbox again takes the longest to upload, with speeds reaching 100 seconds for mode 0 and more than 60 for mode 2. For all three vendors, mode 2 takes the least amount of time which is expected, as the number of calls to $\tt{exit()}$ is lower than the number of calls to $\tt{write()}$ and $\tt{close()}$. Interestingly, mode 0 takes the longest for Box, whereas mode 1 takes the longest for Google Drive. This is the only test where two different modes are noticeably dominant for two different vendors across all file sizes. The implications of this fact are hard to decipher, as the operations don't follow any particular pattern.
+
+\begin{center}
+\CT
+\subfloat[\label{dtest7}]{\includegraphics[height=9cm]{dtest7.pdf}}\quad
+\subfloat[\label{gtest7}]{\includegraphics[height=9cm]{gtest7.pdf}}\quad
+\subfloat[\label{btest7}]{\includegraphics[height=9cm]{btest7.pdf}}
+\captionof{figure}{}
+\end{center}
+
 \end{enumerate}
 
-\begin{wrapfigure}{r}{0.4\textwidth}
-    \vspace{-40pt}
-    \caption{\label{fig:dependency2}}
-    \includegraphics[width=0.39\textwidth]{dependency2.pdf}
-    \vspace{-20pt}
-\end{wrapfigure}
+\section{Conclusion}
+It is hard to tell which mode is the best judging only from the data, as all three modes behave as expected. If taken at face value, both modes 0 and 1 are the slowest modes for the tests where the upload speeds aren't equal across all three modes, but mode 2 is never the slowest. This is not unexpected, however. In the earlier discussion about the trade-off between consistency and efficiency, it was made clear that strategies that prefer to only upload once every so often instead of uploading as frequently as possible would do better in terms of overall efficiency, in exchange for a certain risk of inconsistency. Mode 2 most fits this description out of all the modes, and since the tests only measured efficiency, this result is expected. Indeed, because of this mode 2 has one drawback: if the user ever went into his remote Dropbox account and edited the same file he had open during a local session, one or the other of the two changes would get overwritten, depending on the type of transfer the user makese first.
 
-The final output of the algorithm is a dependency graph representation of the union of the three sets of constraints defined above. An example of a possible dependency graph is given in Figure~\ref{fig:dependency2}. The graph is a directed graph where each edge from node $x$ to node $y$ represents a dependency relation which denotes that node $x$ must be updated before node $y$, and $y$ can only be updated once a certain set of criteria are met. There are two types of nodes in this dependency graph representation--AND-nodes and OR-nodes--and the type determines the set of criteria that must be met before a node can be updated. An AND-node is updateable once \textit{all} of its parents (predecessors) have been updated. In Figure~\ref{fig:dependency2}, all nodes except $S4,S1$ are AND-nodes and can only be updated after all of their respective parents have been updated. An OR-node does not actually represent the state of an actual node in the network, but is an abstract construct to help represent forwarding constraints, as we will see later. As such, it is marked as updateable once only \textit{one} of its predecessors have been updated. The only OR-node in Figure~\ref{fig:dependency2} is $S4,S1$, and it can be marked as updateable once either of $S1$ or $S4$ are updated. To explain in a little more detail, $S1$ can only be updated after $S2$ is updated, and $S7$ can be updated only after $S6$ is updated. The graphs will have a set of nodes with no parents that can be updated immediately. In Figure~\ref{fig:dependency2}, this set would comprise of $S2$, $S4$, and $S6$. An updating mechanism would move through the graph starting from these nodes, updating each node as it is reached in the graph and as its updating criteria are met. 
+Would tests that measured consistency across the local machine and remote server in terms of some sort of metric revealed any meaningful information? Perhaps, but one must also consider the fact that if a user has a file open during a local session, it is not likely that he will have the need or desire to edit the file on the remote server as well, before ending his local session. Even if the user is unaware of the consequences of such an action, only under certain circumstances would the user really have the need to do this (eg. the user left an open file on a computer and switched to using a different computer to do the same work). Therefore, for most practical purposes, mode 2 is probably the best mode to choose out of the three. It is the most efficient, and the risk associated with inconsistency that comes along with it is not very high.
 
-A dependency graph can not only represent dependency relationships between nodes in such a manner, but also gives information as to which nodes can be updated in parallel, thus allowing for fast and efficient network updates. In Figure~\ref{fig:dependency2}, as the two separate trees in the graph have no relations with one another, the sequence in which a node in one is updated with respect to the other has no importance. In other words, nodes $S6$ and $S7$ can be updated independently of the nodes in the other tree. This is useful because if $S6$, for example, were particularly unresponsive, its slow update speed would not hinder the updating of the nodes in the other tree. This way, nodes that are more responsive and update faster will be updated as speedily as possible, without having to ever wait on any slower node that it is not required to by any forwarding or policy constraint.
+\section{Discussion}
+Deterministic upload strategies can only go so far before hitting a wall. Designing more competitive algorithms may have to involve probabilistic, non-deterministic strategies. These types of strategies may sometimes fail to outperform their deterministic counterparts, but usually perform better overall. Implementing such an algorithm would involve choosing probabilities to associate with each pure strategy, according to which each strategy was chosen for any particular session or action.
 
-\subsection{Avoiding Black Holes}
-\label{subsec:blackholes}
-To ensure forwarding consistency, we must first guarantee that black holes will not occur at any given moment during the update. To ensure this, we calculate a series of constraints based on the type of operation that will be applied to each node's routing table. There are three main operations that can be executed upon a node during a network migration, the ``add,'' ``change,'' and ``remove'' operations. How we determine which operation should be applied to each node and the properties of each operation are defined as thus:\\
-
-\begin{itemize}
-\item A forwarding entry should be \textit{added} to a node's routing table if the node is not in the initial path but is in the final path.
-\item A forwarding entry should be \textit{changed} within a node's routing table if the node is in both the initial path and the final path, but if it has a different successor in each path. In other words, a ``change'' node will change the direction of the flow.
-\item A forwarding entry should be \textit{removed} from a node's routing table if the node is in the initial path but is not in the final path.
-\item Additionally, there is one more possibility we must consider. If the node is in both the initial path and the final path, and its successor in both paths is the same, then it is neither a ``add,'' ``change,'' or ``remove'' node. As such, its routing table will not need to be affected in any way as it is already in its final configuration, and therefore such a ``no-op'' node will not need to be considered in any set of constraints. We add it as a lone node, parent-less and child-less, in our dependency graph.\\
-\end{itemize}
-
-To explain how we avoid black holes, we must revisit the definition of a black hole. A black hole occurs when a packet is forwarded to a node that does not contain a forwarding entry pertaining to the flow that the packet belongs to. During a network update, we notice that this situation arises in only two circumstances: when a packet is forwarded to an ``add'' node whose routing table hasn't been updated yet, and when a packet is forwarded to a ``remove'' node whose routing table has already been updated. In other words, black holes occur when:\\
-
-\begin{itemize}
-\item A ``change'' node is updated before its successor ``add'' nodes.
-\item A ``change'' node is updated after its successor ``remove'' nodes.\\
-\end{itemize}
-
-To avoid these situations, in our dependency graph we simply add dependency edges pointing to each ``change'' node from all its successing ``add'' nodes to denote that it must be updated after these ``add'' nodes, and edges pointing from each ``change'' node to all its successing ``remove'' nodes to denote that it must be updated before these ``remove'' nodes. For example, in Figure~\ref{fig:example}, the ``add'' nodes are $S3$ and $S6$, the ``change'' nodes are $S1$, $S4$, $S7$, $S8$, and $S9$, and the ``remove'' nodes are $S2$ and $S5$. $S14$ is a node whose initial and final paths are identical, and thus $S14$'s routing table will not be changed in any way and $S14$ will not be a vertex in the dependency graph.
-
-One detail to note is that ``add'' and ``remove'' nodes should only have edges to the ``change'' node that they directly depend upon. For example, in Figure~\ref{fig:example}, $S3$ must be updated before $S1$, but whether or not it is updated before or after $S4$ is irrelevant. As long as the constraints $S4$ has with other nodes are fulfilled, $S3$ being updated has no effect whatsoever on whether or not $S4$ can be updated, and thus in the dependency graph, it will have no edges to $S4$.
-
-The particular ``change'' node an ``add'' or ``remove'' node should have an edge to can be found using a directed search starting from each ``change'' node, within a digraph that is the union of the initial and final paths. Each search will stop once it reaches another ``change'' node. This is because each ``change'' node will have dependency edges to all succeeding ``add'' and ``remove'' nodes that it is connected to, but that are not separated from it by any other ``change'' node.
-
-\subsection{Avoiding Forwarding Loops}
-\label{subsec:loops}
-Part of forwarding consistency involves guaranteeing that no packets will be lost to forwarding loops during a network update. To guarantee this, we must define an ordering among nodes in the update that will prevent each potential loop from occurring. One technique is to construct an ordering that ensures that every potential loop is broken before it can happen. A correct and complete algorithm to achieve this has been defined in \cite{vanbever11}. To identify loops, we consider the directed graph formed from the union of both the initial and the final paths. We use a DFS cycle detection algorithm to enumerate the cycles in this digraph, and these represent the potential forwarding loops that we will need to break.
-
-\begin{wrapfigure}{r}{0.5\textwidth}
-    \vspace{-30pt}
-    \caption{\label{fig:loopBreaking}}
-    \includegraphics[width=0.49\textwidth]{loopBreaking.pdf}
-    \vspace{-20pt}
-\end{wrapfigure}
-
-To actually ``break'' the loops, for each loop we compute the set of nodes whose paths are in the initial path, and the set of nodes whose paths are in the final path (taking care to exclude ``no-op'' nodes, which should not be considered as part of any constraints). Then, at least one node in the ``initial'' set must be migrated before at least one node in the ``final'' set, and so we add to the dependency graph an OR-node representing the union of all the nodes in the ``initial'' set, then add dependency edges from each ``initial'' node to this OR-node, and from this OR-node to each ``final'' node. Since OR-nodes are considered updateable once a single one of its parents is updated, this is an accurate representation of the relationship ``at least one initial node must be updated before at least one final node.''
-
-For example, consider Figure~\ref{fig:loopBreaking}. Nodes $S2$ and $S4$ have edges in the loop that are in the initial path, $S1$ has an edge in the final path, and $S3$ has edges in both. Notice that as long as we migrate $S2$ \textit{or} $S4$ before $S1$, the loop will not occur. To represent this in our dependency graph, we add an OR-node $S2,S4$ with edges pointing from $S2$ and $S4$ to this node, and edges pointing from this node to $S1$. As a second example, in Figure~\ref{fig:example} the only loop would be between $S8$ and $S9$. To break the loop, a dependency edge must be added from $S9$ to $S8$.
-
-As a side note, this is only one correct way to perform a network update in a loop-free manner. Another way is to perform updates in a backwards sequence along the final path starting from the destination host \cite{francois05}. The reason we choose not to use this scheme is because it forces a strict ordering between nodes, which slows down the speed of the network update. This is because any nodes that could be updated in parallel would be updated in a strict sequence instead, and thus if any single node is unresponsive and takes a long time to update, it will delay the the rest of the update. Although the algorithm presented in this paper may be slower (exponential time in the worst case instead of polynomial time), it identifies all forwarding and policy constraints and therefore allows the maximum number of nodes to be updated at the same time.
-
-\subsection{Avoiding Policy Violations}
-\label{subsec:policy}
-Ensuring policy consistency in a network update can be guaranteed by defining an ordering among \textit{critical changes} which preserves policy consistency at all times during the update. A critical change is a ``change'' node whose update adds or removes a middlebox from the flow. These ``change'' nodes are the only nodes that affect the policy of the flow, because they are the only ones whose migration can possibly change the policy that the flow adheres to. In Figure~\ref{fig:example}, the critical changes would be nodes $S1$ and $S4$. $S1$ is a critical change because before the update, its path contains $S2$ which is connected to $FW1$, but after the update $S1$ forwards traffic directly to $S3$, bypassing $FW1$. Similarly, the migration of $S4$ adds $FW2$ to the flow, where it wasn't part of the flow before. In contrast, $S7$ is not a critical change, as its migration doesn't affect the positions of $FW1$ or $FW2$ in the flow, and these are the only two middleboxes in the network. In other words, $S7$ has no effect on the policy of the flow.
-
-The first step in guaranteeing policy consistency is to identify the critical changes in the migration. This can be accomplished by doing a backwards search in the digraph that is the union of the initial and final paths. The search will start from each middlebox node (a node that's connected to a middlebox) and end in a manner similar to in Section \ref{subsec:blackholes}--the search is terminated once it reaches a ``change'' node. Again, ``change'' nodes act as boundaries because the addition or removal of each middlebox node should only depend on one ``change'' node for each of the node's backwards adjacent edges. Note that this doesn't preclude the possibility of one middlebox node having many critical changes connected to it--if the node has many backwards adjacent edges, it can be added or removed from the flow in multiple ways. Also note that critical change nodes are not necessarily neighbors of the middlebox nodes, they are just the first change nodes to be reached in a search from each backwards edge adjacent to a middlebox node.
-
-The next step is to iterate through all permutations of critical changes, and for each permutation, simulate the effect of applying the change operation on each node. This yields a step-by-step simulation of the state of the network over the course of the update. If at all steps the network still matches either the initial or final policy, then the permutation is policy consistent. Note that there may be more than one policy consistent permutation.
-
-For example, refer again to Figure~\ref{fig:example}. In this example we can identify $S1$ and $S3$ as critical changes. From this we have two permutations of orderings between them: $S1 \rightarrow S3$ and $S3 \rightarrow S1$. In Section~\ref{sec:solution} we have already observed the effects of migrating $S1$ before $S3$: if we migrate $S1$, then the flow will run through $S1 \rightarrow S3 \rightarrow S4 \rightarrow S5 \rightarrow S7$. Here, a match for both the initial and the final policy will fail, as the flow passes through neither $FW1$ nor $FW2$. However, if we migrate $S3$ first, the intermediate flow will become $S1 \rightarrow S2 \rightarrow S4 \rightarrow S6 \rightarrow S7$, which matches both the initial and final policies. Then migrating $S1$ will give us the final path, which matches the final policy. Thus, this sequence of updates never fails to match a policy.
-
-Once we have found a permutation that works, representing it as a set of constraints is simply a matter of adding dependency edges between the critical change nodes, in the order defined by the permutation.
-
-Finding a consistent sequence of critical change nodes for a network update is the most computationally expensive step in the whole process. Iterating through permutations has a growth factor of n!, where n is the number of critical changes. However, note that we originally thought that we would have to simulate the effects of updating all the ``change'' nodes in a critical \textit{region}, with the region starting at the ``change'' node before the first middlebox and ending at the ``change'' node before the last middlebox. This would have been much more expensive, and by recognizing that we only need to simulate the migration of critical ``change'' nodes, as these are the only nodes that affect the flow's policy, we can significantly reduce the algorithm's computational complexity.
-
-\begin{wrapfigure}{r}{0.4\textwidth}
-    \vspace{-10pt}
-    \caption{\label{fig:dependency1}}
-    \includegraphics[width=0.39\textwidth]{dependency1.pdf}
-    \vspace{-20pt}
-\end{wrapfigure}
-
-We can further reduce runtime by pruning out permutations that go against our pre-computed forwarding constraints. If using a permutation were to cause us to have to add an edge that is opposite to an already existing edge in the dependency graph, then we can skip the simulation steps of using the permutation. However, we must be careful not to prune out permutations that go against relationships with OR-nodes in the dependency graph, because these constraints can be satisfied if only one of the constraint edges are satisfied.
-
-One further detail that may justify the use of a factorial time algorithm is the fact that many networks do not deploy very many middleboxes. Figure 1 of \cite{sherry12} gives an analysis of middlebox deployments for a range of network sizes, ranging from networks with fewer than 1k hosts to networks with more than 100k hosts. It is worth noting that networks with fewer than 1k hosts average around  large networks (10k - 100k hosts) have an average of around 100 middleboxes total. Updates in such networks will most likely involve only a fraction of these middleboxes. Furthermore, even if the number of middleboxes is high, a divide and conquer approach can be taken to perform the network updates. The area of the network to be updated can be divided into subsections, each with only a fraction of the total number of middleboxes involved in the update, and each subsection can be updated individually without any sacrifices in terms of time or memory. Such subsections must, however, be independent, as in update dependencies cannot cross subsection boundaries. An algorithm to calculate this approach has not yet been implemented, and this is a potential area for further research that could yield faster performance.
-
-Finally, the dependency graph for the migration Figure~\ref{fig:example} is given in Figure~\ref{fig:dependency1}. As you can see, we can start updating from $S2, S8,$ and $S5$ simultaneously, and continue from there depending on how fast each of those three nodes responds to the upate. Again, a key feature of this type of representation of reconfiguration sequence is that it is restrictive of updates only when necessary, and therefore as many nodes as possible may be updated in parallel at any point in time.
-
-\section{Implementation}
-\label{sec:implementation}
-The implementation developed as part of this work is a ~500-line Python module divided into three classes. The graphing module used is networkx, and as such this is the only dependency that is not packaged as part of Python. The main Migration\textunderscore Consistency class encapsulates the three computational steps in \ref{sec:solution}, and the Config class is a helpful abstraction that contains the initial and final path and policy requirements. The last class, called REList, is where all the path- and policy-matching logic resides. Because of this modularity, extending upon the syntax should not be difficult, as it only requires changing functionality within this single class. The only requirements are that the \texttt{match()} and \texttt{search()} functions are supported and behave correctly (notice that these two functions are similar to those that a normal Python regular expression object implements).
-
-To use the module, a network operator may want to define either a path requirement or a policy requirement, or both. This allows for greater flexibility: there may be instances where an operator would like to divert traffic to a new route that is consistent with the current policy in place and therefore will not have to alter the policy, and other instances where the operator would like to change the policy but does not care about the exact path that the flow takes. The network operator must specify both requirements in a file in this format: ([path requirement], [policy requirement]). The path requirement must be a comma-separated sequence of nodes that the operator would like the path to pass through. The wildcard symbol `*' can be used to specify that any path may be used, or that any path between two nodes may be used (eg. ``s1,*,s3''). The policy requirement must be a list of middlebox nodes with one of three operators between them. The operators are `\&\&' (and), `$\parallel$' (or), and `$>>$' (sequence). For example, [s1 \&\& s2] means that the policy must be that the flow passes through both $S1$ and $S2$, but the order doesn't matter. [s1 $\parallel$ s2] means that the flow must pass through either $S1$ or $S2$, or both, and the order doesn't matter. [s1 $>>$ s2] means that the flow must pass through first $S1$, then $S2$. Note that as developing a language to specify network updates was not the focus of my research, the syntax logic behind these operators is not overly complex, and thus the operator must use some thought in specifying such policies. For example, only one type of operator may be used at a time, so complex operations like chaining many different operations will not behave as expected. Extending such functionality is an area for useful further work.
-
-For simplicity in testing, I implemented a helper function to read in a file to build a networkx graph that emulates a network. An example file with the correct layout can be found in the Appendix~\ref{apndx:net}. Also, it is assumed that migrations are tested from a certain initial configuration to a final configuration, an initial configuration file must also be supplied. A network operator may use the module from the command-line in this way:\\
-\texttt{\textasciitilde .\textbackslash migration\textunderscore consistency.py network.txt init\textunderscore config.txt final\textunderscore config.txt}
-
-When run, the module will output a series of permutations of critical change nodes that it is simulating, and once it finds one that works it will print a success message. It will keep trying all possible permutations of critical changes of each final path that meets the path and policy requirements until it exhausts these paths.
-
-Table~\ref{tab:trials} gives runtimes for inputs of various network sizes. The network graphs were constructed with the given number of nodes and 1.2 as many edges to help ensure that the two end hosts would be connected. The results are in number of seconds the module took to find a solution (or exhaust all possible final paths), averaged over 100 trial runs. It is apparent that the module doesn't scale particularly well to larger graph sizes. Upon analysis, bottlenecks in the code appear at most graph operations, such as the networkx library function to enumerate cycles, networkx path enumeration generators, and recursive depth-first-search functions on the dependency graph I implemented. This is to be expected--for example, the networkx cycle-detection function has a time complexity of O((n+e)(c+1)), where n is the number of nodes, e the number of edges, and c the number of unique cycles in the graph. And this function is called for every path considered, and the number of paths can reach up to O(n!) in complete graphs. This results in a worst-case runtime of O((n+e)(c+1))(n!), after only considering cycle-detection per-path. Certain optimizations must be implemented for this module to be practically useful, but such optimizations would likely involve custom-defined functions to take the place of the networkx library calls we use. For example, to find every path that matches the final policy, I use networkx.all\textunderscore simple\textunderscore paths() to generate all the paths from the source host to the destination host, then skip those that don't match the final path and policy requirements. Since the number of paths that match the final requirements is a subset of all possible paths, this results in networkx generating many more paths than the module needs to use. To work around this, a custom path generator whose searching mechanism is limited by the final path and policy requirements might be a possible solution.
-
-Another optimization could involve the pruning system I use to prune out permutations of critical changes that break the forwarding constraints already in the dependency graph. For every critical change node in the permutation, I do a backwards and forwards depth-first-search in the dependency graph to make sure that none of its successors appear after it in the permutation, and none of its predecessors appear before it. The reason I do this instead of using the successor and predecessor functions given in networkx is because my depth-first-searches must stop once they reach an OR-node, and this functionality is impossible to specify with the networkx library functions. Therefore, a caching system similar to the one that networkx uses--which is what makes successor and predecessor lookups in networkx fast--could reduce the module's runtime. 
-
-\begin{table}
-\centering
-\begin{tabular}{ | c | c c c c c | }
-    \hline
-    \multirow{2}{*}{Number of Nodes} & \multicolumn{5}{|c|}{Number of Middleboxes} \\ 
-     &  1 & 2 & 3 & 4 & 5 \\ \hline
-    10 & 0.0016 & 0.0016 & 0.0016 & 0.0017 & 0.0017 \\ \hline
-    20 & 0.0029 & 0.0036 & 0.0042 & 0.0071 & 0.0150 \\ \hline
-    30 & 0.0049 & 0.0455 & 0.7025 & 4.7617 & 88.7751 \\ \hline
-    40 & 0.0053 & 0.1338 & 1493.4438 & Timeout & Timeout \\ \hline
-    50 & 0.0097 & 938.4018 & Timeout & Timeout & Timeout \\ \hline
-\end{tabular}
-\caption{Trial runs on given inputs}
-\label{tab:trials}
-\end{table} 
-
-\section{Related Work}
-\label{sec:relatedwork}
-There has been much recent research in the field of consistent updates. \cite{francois05}, \cite{vanbever11}, and \cite{mahajan13} are three such examples. All address the issue of consistent network updates, but only at the level of guaranteeing loop-free updates. They offer working and viable solutions, but do not address policy consistency. As previously mentioned, however, the loop-breaking algorithm presented in \cite{vanbever11} is used as part of the algorithm presented in this paper.
-
-Reitblatt et al. define a different algorithm to perform consistent network updates in \cite{reitblatt12}. Their ``two-phase'' update algorithm, although indeed consistent and correct, involves a high memory overhead and updates will take considerably longer than the algorithm presented in this report.
-
-The two-phase update is defined as thus: forwarding tables in all nodes participating in the update are ``doubled,'' meaning that the entries matching the initial path are kept in the forwarding tables, while entries for the final path are added to the forwarding table. Once this step is complete, packets entering the network are ``tagged'' at the network boundaries, marking them as belonging to the initial path. For brevity, let us denote the set of packets tagged this way as `$A$'. Then, a certain amount of time is allowed to pass to ensure that all untagged packets have left the network. At this point, all packets in the network should belong to `$A$'. After this, packets entering the network are tagged with a different tag to specify that they belong to the final path. Let us denote this set of packets as `$B$'. Now, within the network there will be a mixture of packets belonging to `$A$' and `$B$'. At this point, packets belonging to `$A$' are forwarded following the initial forwarding entries in each node, and packets in `$B$' are forwarded following the forwarding entries for the final path that were added in anticipation of the update. After this step, another amount of time is allowed to pass to let packets in `$A$' leave the network. Once operators are certain that no `$A$' packets remain, the old forwarding entries for the initial path are deleted from the nodes, packets are no longer marked as they enter the network, and the flow now follows its final configuration.
-
-While this approach is certainly correct, it does have some drawbacks. Firstly, it causes a 100\% usage increase in forwarding table size because at every node participating in the update, during the update each node must contain two forwarding entries matching one flow, where by default there should only be one. Secondly, updates executed in this manner will take a significant amount of time for two reasons:
-\begin{itemize}
-\item A certain amount of waiting is involved, first for untagged packets to drain from the network, then for `$A$' packets to drain from the network. This waiting period can vary greatly depending on the size of the network, its latency, and the traffic it is experiencing.
-\item At each step where forwarding entries in nodes are manipulated, the update process will not be able to proceed until every node participating in the update is properly configured.
-\end{itemize}
-
-This approach somewhat contrasts with the algorithm presented in this report. The two-phase update scheme is relatively computationally simple and thus will not take as much time to generate as enumerating permutations of critical changes would. But at the same time, the update process itself is significantly slower when following this scheme, whereas the algorithm in this report is optimized to allow as many concurrent updates as possible and involves no wait period. Furthermore, the algorithm in this report doesn't result in any overhead in terms of forwarding table memory.
-
-\cite{katta13} offers an optimization to the ``two-phase'' approach in \cite{reitblatt12} which takes into account the fact that such updates are usually performed at a network-wide level. This means that forwarding entries for many flows are usually updated at once, and when this is the case, there is a time-memory tradeoff that can be utilized during the update. If an operator decides to perform the two-phase update incrementally, updating only a slice of all the forwarding entries that must be updated at a time, the high memory overhead can be reduced at the expense that the update must be performed in many steps. This optimization can be useful in certain situations, but does not reduce the speed of the update, which is one of the benefits of the algorithm in this work.
+One obstacle that was posed to me during a presentation of this project was the issue of multiple users editing a file at the same time. All three vendors offer sharing functionality that allow two or more users to make changes concurrently. At the time I answered that such concerns were beyond the scope of the project, as I was more focused on examining particular upload schemes as pertaining to the communication between a client and server of a remote file storage service. Pondering the question does yield some interesting discussion, however. How would adding the dimension of upload scheme between client and server affect concurrent behavior? Consider the case where two users attempt to edit the same part of the same file in parallel. Mode 0 would be the only somewhat acceptable mode to operate under, and even then, one's activity may only be observable to the other in lagging bursts, which would make such an endeavor difficult. Modes 1 and 2 would most likely result in failure, as one user would be required to close the file he was working on or end his session altogether before his changes would be seen by the other. It may be for this reason that a cross-vendor remote file storage access application has failed to come about.
 
 \section{Further Work}
-\label{sec:furtherwork}
-There are a number of areas in which the research presented in this report can be built upon and extended. First of all, the syntax for network updates can and should be extended for greater flexibility and control of the network for the network operator. Again, as developing such a syntax was not the focus of this project, much of the supported syntax was included mainly for testing purposes. Extending the language can be done through altering the REList class in migration\textunderscore consistency, as this is the class that is used to match possible final paths with path and policy requirements. Some suggested operators are the `!!' (not) and `><' (xor) operators.
+One natural further step to take with this project would be to build up the Box and Google Drive modules to a functional level, and to build similar modules for other remote file storage vendors. With enough vendors, it may become useful to package all the modules together to form a single library through which developers could write applications to access a user's remote file storage account in a completely vendor-agnostic manner.
 
-Secondly, the module's behavior for handling unsolveable instances could be refined. Currently, if the module fails to find a path and permutation that works, it will finish execution and exit. However, remember that in order to reduce execution time, for each final path considered, the module prunes out permutations of critical changes that go against the forwarding constraints. In the case where no optimal final path with a working critical change permutation was found, one viable solution would be to take such a final path and try simulating its critical change permutations that were initially pruned out. It is possible that one of these permutations would meet the policy requirements (while breaking the forwarding constraints, of course). If no other option were available, an operator could choose to use an update dependency graph generated this way, while noting that at some point it is possible for a forwarding loop to occur.
+Another possible idea would be to examine the mathematical competitiveness of each mode against an optimal algorithm that has knowledge of the entire user's behavior for any given session beforehand. Information about this could shed light on how one would go about designing and implementing a non-deterministic strategy that could incorporate some or all of the three modes presented here. 
 
-The nodes involved in such a loop would present themselves in the form of a cycle in the dependency graph. For example, if the forwarding constraints added an edge from node $x$ to node $y$ and both were critical change nodes, any permutation where $y$ appeared before $x$ would be pruned out. Now if an operator were forced to use the pruned permutation, the permutation would add an edge from $y$ to $x$, creating a cycle in the dependency graph. Therefore, a more elegant solution in the face of a failure to find a working final path and permutation would be to identify the nodes involved in this cycle, and to notify the operator that a forwarding loop could occur since the constraint edge $x \rightarrow y$ would not be met. The operator would then know to try his best to update $x$ and $y$ as closely together in time as possible, in order to make the loop disappear as quickly as possible.
-
-Furthermore, as this module does not scale well to larger network sizes or updates involving a large number of middleboxes, the divide and conquer mechanism mentioned in a few places in this work should be implemented. Further research and experimentation in this area is required to examine the benefits and drawbacks of this approach.
-
-Finally, the module's functionality could be added to Pyretic, a growing Python library to define, control, and monitor network policies using SDN. This project was developed with the purpose of becoming packaged with Pyretic as yet another example of network programming that was not possible before SDN. Further information on SDN and Pyretic can be found in \cite{monsanto13} and \cite{pyretic}.
-
-
-\section{Conclusion}
-\label{sec:conclusion}
-Network updates, if not handled with attentiveness, can incur packet loss due to violations of forwarding constraints, as well as violations of network-wide policy migrations that can result in a variety of outcomes such as unwanted traffic leaking into a network, or even the possibility of a malicioius attack. Therefore, ensuring consistency during a network update is of utmost importance; unfortunately, calculating a sequence of update operations in order to perform a consistent network update can be a difficult and frustrating process for even the most well-trained network operators. Thus, we hope that the automated update sequence calculation algorithm presented here will be of use to network operators and form a basis upon which further advancement in the study of network updates can be made. The algorithm itself builds upon previous work concerning the the avoidance of forwarding loops \cite{vanbever11} but also offers some original contributions in the form of the enumeration of critical change permutations to guarantee policy consistency. Furthermore, we hope that the algorithm will serve as another example of the benefits of SDN and prove that network operations that were previously impossible with the traditional method of networking are now within reach.\\
-
+\vspace{1cm}
 This paper represents my own work in accordance with University regulations.
+\vspace{1cm}
+
 \bstctlcite{bstctl:etal, bstctl:nodash, bstctl:simpurl}
 \bibliographystyle{IEEEtranS}
 \bibliography{references}
 
+% \clearpage
+% \appendix
+% \appendixpage
+% Please note that all timings are in seconds.
+% \FloatBarrier
 
-\appendix
-\appendixpage
-
-\section{Sample Network Input File}
-\label{apndx:net}
-\lstinputlisting{net.txt}
-
-
-\section{Migration Consistency Module (migration\textunderscore consistency.py)}
-\lstinputlisting[language=Python, firstline=3]{migration_consistency.py}
+% \begin{figure}
+% 	\caption{\label{dtest0}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest0.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest0}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest0.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest0}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest0.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{dtest1}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest1.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest1}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest1.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest1}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest1.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{dtest2}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest2.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest2}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest2.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest2}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest2.pdf}
+% 	\end{center}
+% \end{figure}
+% \clearpage
+% \begin{figure}
+% 	\caption{\label{dtest3}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest3.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest3}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest3.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest3}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest3.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{dtest4}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest4.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest4}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest4.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest4}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest4.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{dtest5}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest5.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest5}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest5.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest5}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest5.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{dtest6}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest6.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest6}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest6.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest6}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest6.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{dtest7}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{dtest7.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{gtest7}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{gtest7.pdf}
+% 	\end{center}
+% \end{figure}
+% \begin{figure}
+% 	\caption{\label{btest7}}
+%     \begin{center}
+% 	    \includegraphics[width=1\textwidth]{btest7.pdf}
+% 	\end{center}
+% \end{figure}
 
 \end{document}

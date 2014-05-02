@@ -9,9 +9,9 @@ import os
 import urllib3.exceptions
 
 # GLOBAL VARS --------------------------------------- #
-ITERATIONS = 50
+ITERATIONS = 2
 NUM_MODES = 3
-NUM_SIZES = 1
+NUM_SIZES = 4
 
 # CLASSES --------------------------------------- #
 class test:
@@ -287,23 +287,23 @@ if __name__ == "__main__":
 	# OBJECTS --------------------------------------- #
 	tests = [ \
 		# test(testfunc=test0, num=0,    desc="Simple test"),                                                                   \
-		test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
+		# test(testfunc=test1, num=1,    desc="Multiple writes in single session"),                                             \
 		# test(testfunc=test2, num=2,    desc="Lots of really small writes"),                                                   \
-		# test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
+		test(testfunc=test3, num=3,    desc="Open the file in r+ and w+ modes"),                                            \
 		# test(testfunc=test4, num=4,    desc="Many alternating write()'s' and close()'s"),                                     \
 		# test(testfunc=test5, num=5,    desc="Three files open concurrently, written to, then closed together at the end"),    \
 		# test(testfunc=test6, num=6,    desc="Three files open concurrently, written to, then closed right afterwards"),       \
 		# test(testfunc=test7, num=7,    desc="Three files open concurrently, random operations"),       \
 		]
 	pfslist = [ \
-		# pfs_wrapper(MODE_WRITE,   "0: Upload after every write"),     \
+		pfs_wrapper(MODE_WRITE,   "0: Upload after every write"),     \
 		pfs_wrapper(MODE_CLOSE,   "1: Upload on close()"),            \
 		pfs_wrapper(MODE_EXIT,    "2: Upload only during exit"),      \
 		]
 	sizes = [ \
-		# size("1kb",    1024,       0),    \
-		# size("10kb",   10240,      1),    \
-		# size("100kb",  102400,     2),    \
+		size("1kb",    1024,       0),    \
+		size("10kb",   10240,      1),    \
+		size("100kb",  102400,     2),    \
 		size("1mb",    1048576,    0),    \
 		]
 
